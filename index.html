@@ -214,8 +214,9 @@ function switchTab(name,btn){
   document.getElementById('panel-'+name).classList.add('active');
 }
 
-// ── API 配置（Key 已移至 Cloudflare Worker 服务端） ──
-var WORKER_URL = "https://blue-band-73c0.etwowe.workers.dev";
+// ── API 配置 ──
+var LLM_KEY = "sk-e284c269fa884b7598fd9321c91f0e39";
+var LLM_URL = "https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL = "deepseek-chat";
 
 // 专家 Persona System Prompt
@@ -383,9 +384,9 @@ async function callDeepSeek(question,usePersona){
     kbContext=parts.join("\n\n---\n\n");
   }
   var msgs=buildMsgs(question,kbContext,usePersona);
-  var resp=await fetch(WORKER_URL,{
+  var resp=await fetch(LLM_URL,{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY},
     body:JSON.stringify({model:LLM_MODEL,messages:msgs,temperature:0.3,max_tokens:2048,stream:false})
   });
   if(!resp.ok){
