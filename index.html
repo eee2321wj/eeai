@@ -69,6 +69,10 @@ textarea::placeholder{color:#C5C5C9}
 .source-detail-actions{margin-top:10px;display:flex;gap:8px}
 .source-btn-copy{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--secondary);font-size:11px;cursor:pointer;transition:all .15s}
 .source-btn-copy:hover{background:var(--orange);color:#FFF;border-color:var(--orange)}
+.source-detail-source{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:#6B7280;display:flex;align-items:center;gap:4px}
+.source-detail-source .source-label{color:#B0B0B6;font-weight:600}
+.source-detail-source a{color:var(--orange);text-decoration:none}
+.source-detail-source a:hover{text-decoration:underline}
 .source-hint{font-size:11px;color:#B0B0B6;margin-top:6px}
 .source-hint kbd{display:inline-block;padding:1px 6px;background:#EFEFEF;border-radius:4px;font-family:inherit;font-size:11px;border:1px solid #D5D5D5}
 .compare-result{display:none;gap:20px;margin-top:16px}
@@ -445,6 +449,10 @@ function renderSourceDetail(r) {
            '<div style="margin-top:8px;font-size:11px;color:#B0B0B6">关键词: ' + kwText + '</div>' +
            '<div class="source-detail-actions">' +
              '<button class="source-btn-copy" onclick="event.stopPropagation();copySourceText(this,' + item.id + ')">复制全文</button>' +
+           '</div>' +
+           '<div class="source-detail-source">' +
+             '<span class="source-label">📖 信息来源:</span> ' +
+             (item.src ? '<a href="' + escHtml(item.src) + '" target="_blank" rel="noopener">' + escHtml(item.author || item.src) + '</a>' : escHtml('陈奕蔚 会计视野论坛答疑')) +
            '</div>';
   } else {
     var item = r.item;
@@ -457,6 +465,9 @@ function renderSourceDetail(r) {
            '</div>' +
            '<div class="source-detail-actions">' +
              '<button class="source-btn-copy" onclick="event.stopPropagation();copySourceText(this,' + item.id + ')">复制全文</button>' +
+           '</div>' +
+           '<div class="source-detail-source">' +
+             '<span class="source-label">📖 信息来源:</span> ' + escHtml('企业会计准则原文') +
            '</div>';
   }
 }
