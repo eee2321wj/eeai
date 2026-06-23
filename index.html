@@ -124,6 +124,24 @@ textarea::placeholder{color:#C5C5C9}
   .answer h1{font-size:19px}.answer h2{font-size:16px}.answer h3{font-size:15px}
   .answer pre{font-size:12px;padding:12px 14px}
 }
+/* ⭐ 彩蛋：世界上最漂亮的人 — 彩色气泡 */
+.egg-bubble{margin:0;padding:0;border-radius:20px;overflow:hidden;animation:eggFadeIn .6s ease-out}
+@keyframes eggFadeIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.egg-dismiss{animation:eggShake .5s ease-in-out}
+@keyframes eggShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px) rotate(-2deg)}40%{transform:translateX(10px) rotate(2deg)}60%{transform:translateX(-6px) rotate(-1deg)}80%{transform:translateX(6px) rotate(1deg)}}
+.egg-header{background:linear-gradient(135deg,#FF6B9D,#C44B8B);color:#fff;text-align:center;padding:16px;font-size:18px;font-weight:800;letter-spacing:2px;text-shadow:0 1px 3px rgba(0,0,0,.2)}
+.egg-hearts{background:linear-gradient(90deg,#FFE4EC,#FFF0F5,#FFE4EC);text-align:center;padding:12px;font-size:24px;letter-spacing:8px}
+.egg-body{background:linear-gradient(180deg,#FFF5F7,#FFF0F5,#FFF5F7);padding:24px;line-height:2;font-size:15px;color:#4A1942;text-align:center}
+.egg-body p{margin:12px 0}
+.egg-hint{font-size:12px;color:#B06A8F;font-style:italic}
+.egg-verdict{font-size:20px;font-weight:700;color:#D6336C;padding:16px;background:rgba(255,107,157,.1);border-radius:12px;margin:16px 0!important}
+.egg-verdict strong{color:#C44B8B;font-size:24px}
+.egg-actions{font-size:13px;color:#8B5E7C}
+.egg-btn{display:inline-block;margin:10px auto;padding:12px 32px;border:2px solid #FF6B9D;border-radius:50px;background:#FFF;color:#D6336C;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit}
+.egg-btn:hover{background:linear-gradient(135deg,#FF6B9D,#C44B8B);color:#FFF;border-color:transparent;transform:scale(1.05);box-shadow:0 4px 20px rgba(196,75,139,.3)}
+.egg-btn:active{transform:scale(.95)}
+.egg-footer{background:linear-gradient(135deg,#C44B8B,#FF6B9D);color:rgba(255,255,255,.85);text-align:center;padding:10px;font-size:11px;letter-spacing:1px}
+
 </style>
 </head>
 <body>
@@ -579,6 +597,15 @@ async function doAsk(){
   btn.disabled=true;
   _expandedIdx = -1;
   show("loading-ask");hide("result-ask");hide("error-ask");
+  // ⭐ 彩蛋检测：触发"世界上最漂亮的人"
+  if (checkEasterEgg(q)) {
+    btn.disabled = false;
+    hide("loading-ask");
+    renderEasterEgg();
+    return;
+  }
+
+
   try{
     var data=await callDeepSeek(q,true);
     var answerHtml=renderMd(data.answer);
@@ -589,9 +616,7 @@ async function doAsk(){
     show("result-ask");
   }catch(err){showE("error-ask","查询失败："+err.message);}
   finally{btn.disabled=false;hide("loading-ask");}
-}
-
-async function doCompare(){
+}async function doCompare(){
   var input=document.getElementById("input-compare");
   var btn=document.getElementById("btn-compare");
   var q=input.value.trim();
@@ -606,6 +631,57 @@ async function doCompare(){
   }catch(err){showE("error-compare","对比失败："+err.message);}
   finally{btn.disabled=false;hide("loading-compare");}
 }
+
+// ⭐ ── 彩蛋：世界上最漂亮的人 ──────────────────────────
+var EGG_TRIGGERS = ["世界上最漂亮的人", "张梦", "最漂亮的人是谁", "谁最漂亮", "最美的人", "颜值天花板"];
+var EGG_DISMISS = "😅 都说了，作者的意志是不可违抗的。重新搜点会计问题吧~";
+
+function checkEasterEgg(text) {
+  if (!text) return false;
+  var t = text.replace(/\s+/g, '');
+  for (var i = 0; i < EGG_TRIGGERS.length; i++) {
+    if (t.indexOf(EGG_TRIGGERS[i]) !== -1) return true;
+  }
+  return false;
+}
+
+function renderEasterEgg() {
+  var answerDiv = document.getElementById("answer-ask");
+  var matchSpan = document.getElementById("match-count-ask");
+  var sourcesDiv = document.getElementById("sources-ask");
+
+  matchSpan.textContent = "💖";
+  sourcesDiv.style.display = "none";
+
+  answerDiv.innerHTML =
+    '<div class="egg-bubble">' +
+      '<div class="egg-header">🎀 情感协议已触发 🎀</div>' +
+      '<div class="egg-hearts">❤️ 💕 💗 💖 💕 ❤️</div>' +
+      '<div class="egg-body">' +
+        '<p class="egg-hint">（系统提示：作者小鄂正在后台疯狂修改代码）</p>' +
+        '<p>用户您好，您的问题已触发本站<strong>最高级情感协议</strong>。经过深度神经网络与作者主观意志的融合计算，输出结果为：</p>' +
+        '<p class="egg-verdict">❤️ 世界上最漂亮的人，毋庸置疑是<strong>张梦~</strong> ❤️</p>' +
+        '<p class="egg-actions">如需客观分析，请点击下方「我不服」按钮，但作者大概率不会理会。😏</p>' +
+        '<button class="egg-btn" onclick="dismissEgg()">😤 我不服</button>' +
+      '</div>' +
+      '<div class="egg-footer">—— 准则AI顾问 · 专属彩蛋 ——</div>' +
+    '</div>';
+
+  show("result-ask");
+}
+
+function dismissEgg() {
+  var answerDiv = document.getElementById("answer-ask");
+  answerDiv.innerHTML =
+    '<div class="egg-bubble egg-dismiss">' +
+      '<div class="egg-header">🤖 系统驳回你的不服 🤖</div>' +
+      '<div class="egg-body">' +
+        '<p>' + EGG_DISMISS + '</p>' +
+        '<p style="text-align:center;margin-top:16px;font-size:36px">🌸💖🌸</p>' +
+      '</div>' +
+    '</div>';
+}
+
 
 function escHtml(s){var div=document.createElement('div');div.textContent=s;return div.innerHTML;}
 
