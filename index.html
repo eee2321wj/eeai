@@ -313,7 +313,7 @@ function searchKB(question) {
         if (al.indexOf(bg) !== -1) bgScore += 0.3;
         if (kwl.indexOf(bg) !== -1) bgScore += 0.5;
       });
-      score += Math.min(bgScore, 8);
+      score += Math.min(bgScore, 4); // bigram回退分数上限降低（避免过多低质匹配）
     }
 
     if (score > 0) results.push({ item: item, score: Math.round(score * 10) / 10, type: "qa" });
@@ -345,7 +345,8 @@ function searchKB(question) {
   });
 
   results.sort(function(a, b) { return b.score - a.score; });
-  return results;
+  // 最低分过滤：score < 5 的条目视为低质量匹配，剔除（减少干扰条目）
+  return results.filter(function(r) { return r.score >= 5; });
 }
 
 function buildMsgs(question,kbContext,usePersona){
