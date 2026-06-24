@@ -331,7 +331,7 @@ function searchKB(question) {
         if (al.indexOf(bg) !== -1) bgScore += 0.3;
         if (kwl.indexOf(bg) !== -1) bgScore += 0.5;
       });
-      score += Math.min(bgScore, 4); // bigram回退分数上限降低（避免过多低质匹配）
+      score += Math.min(bgScore, 2); // bigram回退分数上限降低（减少低质匹配）避免过多低质匹配）
     }
 
     if (score > 0) results.push({ item: item, score: Math.round(score * 10) / 10, type: "qa" });
@@ -364,7 +364,7 @@ function searchKB(question) {
 
   results.sort(function(a, b) { return b.score - a.score; });
   // 最低分过滤：score < 5 的条目视为低质量匹配，剔除（减少干扰条目）
-  return results.filter(function(r) { return r.score >= 5; });
+  return results.filter(function(r) { return r.score >= 8; });
 }
 
 function buildMsgs(question,kbContext,usePersona){
@@ -427,12 +427,13 @@ function renderSources(kbResults, kbCount) {
     document.getElementById("sources-ask").style.display = "none";
     return;
   }
-  var topScore = qaResults[0].score;
+  var maxScore = qaResults[0].score;
+  var refScore = Math.max(maxScore, 60); // 以60分为满分基准
   var srcHtml = '<div class="sources-title">\u23f2 匹配知识条目（共 ' + qaResults.length + ' 条）</div>';
   qaResults.slice(0, 8).forEach(function(r, idx) {
     var label = (r.item.q || "").substring(0, 60);
     var catBadge = r.item.cat || "";
-    var pct = topScore > 0 ? Math.round(r.score / topScore * 100) : 0;
+    var pct = Math.round(Math.min(r.score / refScore, 1) * 100);
     srcHtml +=
       '<div class="source-item" onclick="toggleSource(this,' + idx + ')" id="src-' + idx + '">' +
         '<div class="source-header">' +
