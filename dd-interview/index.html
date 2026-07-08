@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>AI尽调访谈助手</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--blue:#2563EB;--blue-dark:#1D4ED8;--blue-light:#EFF6FF;--bg:#F8FAFC;--white:#FFF;--text:#0F172A;--secondary:#64748B;--border:#E2E8F0;--radius:14px;--red:#DC2626;--amber:#D97706;--green:#16A34A;--teal:#0D9488}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.container{max-width:880px;margin:0 auto;padding:20px 20px 40px}
+
+/* Header */
+.header{padding:28px 0 16px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.logo-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));display:flex;align-items:center;justify-content:center;color:var(--white);font-size:16px;font-weight:700}
+.logo-badge{font-size:13px;font-weight:600;color:var(--secondary);letter-spacing:.5px}
+h1{font-size:32px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px}
+h1 em{font-style:normal;color:var(--blue)}
+.subtitle{font-size:14px;color:var(--secondary)}
+.stats-row{display:flex;gap:28px;margin-top:14px}
+.stat-item{display:flex;flex-direction:column}
+.stat-num{font-size:22px;font-weight:700;color:var(--text)}
+.stat-label{font-size:11px;color:var(--secondary);margin-top:2px}
+
+/* Section titles */
+.section-title{font-size:17px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title .icon{font-size:20px}
+
+/* Glossary */
+.glossary-wrap{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+.glossary-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none;transition:background .15s}
+.glossary-header:hover{background:#FAFBFC}
+.glossary-header .chevron{transition:transform .25s;font-size:12px;color:var(--secondary)}
+.glossary-wrap.open .glossary-header .chevron{transform:rotate(180deg)}
+.glossary-body{display:none;padding:0 18px 18px;border-top:1px solid var(--border)}
+.glossary-wrap.open .glossary-body{display:block}
+.glossary-body .hint{font-size:12px;color:var(--secondary);margin-bottom:12px;line-height:1.6}
+.term-table{width:100%;border-collapse:collapse;font-size:13px}
+.term-table th{text-align:left;padding:8px 10px;background:var(--blue-light);color:var(--blue-dark);font-weight:600;border-bottom:2px solid #BFDBFE;font-size:12px}
+.term-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.term-table .correct-term{font-weight:600;color:var(--text);min-width:80px}
+.term-table .errors{color:var(--secondary);line-height:1.6}
+.term-table .errors span{display:inline-block;background:#FEF2F2;color:var(--red);padding:1px 8px;border-radius:4px;margin:2px 3px;font-size:11px}
+.term-table .btn-del{background:none;border:1px solid transparent;color:var(--secondary);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:all .15s}
+.term-table .btn-del:hover{color:var(--red);border-color:#FECACA;background:#FEF2F2}
+.glossary-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.btn-sm{padding:8px 18px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--white);color:var(--text);transition:all .15s}
+.btn-sm:hover{border-color:var(--blue);color:var(--blue)}
+.btn-sm.primary{background:var(--blue);color:var(--white);border-color:var(--blue)}
+.btn-sm.primary:hover{opacity:.9}
+.glossary-add-row{display:flex;gap:8px;margin-top:12px;align-items:center}
+.glossary-add-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:0}
+.glossary-add-row input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+
+/* Input */
+.input-section{margin-bottom:20px}
+textarea{width:100%;padding:16px;font-size:15px;line-height:1.7;border:2px solid var(--border);border-radius:var(--radius);background:var(--white);color:var(--text);outline:0;font-family:inherit;resize:vertical;min-height:160px;transition:border-color .2s,box-shadow .2s}
+textarea:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.08)}
+textarea::placeholder{color:#94A3B8}
+
+.btn-main{width:100%;height:56px;border:0;border-radius:var(--radius);background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:var(--white);font-size:18px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .1s;letter-spacing:.3px}
+.btn-main:hover{opacity:.92}
+.btn-main:active{transform:scale(.98)}
+.btn-main:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* Loading */
+.loading-wrap{display:none;align-items:center;justify-content:center;gap:10px;padding:24px;color:var(--secondary);font-size:14px}
+.loading-wrap.show{display:flex}
+.spinner{width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Error */
+.error-box{display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:14px 18px;margin-top:16px;color:#991B1B;font-size:14px;line-height:1.6}
+.error-box.show{display:block}
+
+/* Results */
+.results-wrap{display:none;margin-top:20px;animation:fadeIn .4s}
+.results-wrap.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.result-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;gap:0}
+.result-tab{padding:12px 22px;font-size:14px;font-weight:600;color:#94A3B8;cursor:pointer;border:0;background:none;position:relative;transition:color .2s}
+.result-tab:hover{color:var(--text)}
+.result-tab.active{color:var(--blue)}
+.result-tab.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:3px;background:var(--blue);border-radius:2px 2px 0 0}
+
+.result-panel{display:none}
+.result-panel.active{display:block}
+
+/* Card */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:22px;line-height:1.8;font-size:14px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.card-title .emoji{font-size:18px}
+
+/* Corrected text - diff highlight */
+.corrected-body{line-height:2;white-space:pre-wrap}
+.corrected-body .ins{background:#DCFCE7;color:var(--green);padding:1px 4px;border-radius:3px;font-weight:600}
+.corrected-body .del{background:#FEE2E2;color:var(--red);text-decoration:line-through;padding:1px 4px;border-radius:3px}
+.corrected-body .info{display:inline-block;margin-left:4px;font-size:11px;color:var(--secondary);cursor:help;border-bottom:1px dashed var(--secondary)}
+
+/* Structured notes */
+.note-item{background:var(--bg);border-radius:10px;padding:16px 18px;margin-bottom:12px}
+.note-q{font-weight:700;color:var(--blue);margin-bottom:6px;font-size:14px}
+.note-a{color:var(--text);font-size:14px;line-height:1.8}
+
+/* Risk signals */
+.risk-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px;border-left:4px solid}
+.risk-card.high{border-left-color:var(--red);background:#FFF5F5}
+.risk-card.medium{border-left-color:var(--amber);background:#FFFBEB}
+.risk-card.low{border-left-color:var(--green);background:#F0FDF4}
+.risk-level{font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.risk-level.high{background:#FEE2E2;color:var(--red)}
+.risk-level.medium{background:#FEF3C7;color:var(--amber)}
+.risk-level.low{background:#DCFCE7;color:var(--green)}
+.risk-desc{font-size:14px;line-height:1.8;color:var(--text)}
+.risk-reason{margin-top:8px;font-size:12px;color:var(--secondary);padding:8px 12px;background:rgba(0,0,0,.02);border-radius:6px}
+
+/* Newbie tips */
+.tip-card{background:var(--blue-light);border:1px solid #BFDBFE;border-radius:10px;padding:16px 18px;margin-bottom:12px}
+.tip-header{font-weight:700;color:var(--blue-dark);margin-bottom:6px;font-size:14px}
+.tip-body{font-size:14px;line-height:1.8;color:var(--text)}
+
+/* Footer */
+.footer{text-align:center;padding:40px 20px 30px;font-size:12px;color:#94A3B8;margin-top:10px}
+
+@media(max-width:640px){
+  .container{padding:14px}
+  h1{font-size:24px}
+  .result-tab{padding:10px 14px;font-size:13px}
+  .term-table{font-size:12px}
+  .term-table td,.term-table th{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-row">
+    <div class="logo-icon">DD</div>
+    <span class="logo-badge">AI尽调访谈助手</span>
+  </div>
+  <h1>从<em>录音转写</em>到<em>可用纪要</em></h1>
+  <p class="subtitle">粘贴讯飞/通义听悟等转写文本，AI自动纠正术语、提取要点、标记风险</p>
+  <div class="stats-row">
+    <div class="stat-item"><span class="stat-num" id="term-count">13+</span><span class="stat-label">内置术语纠错</span></div>
+    <div class="stat-item"><span class="stat-num">4维</span><span class="stat-label">分析维度</span></div>
+    <div class="stat-item"><span class="stat-num">秒级</span><span class="stat-label">处理速度</span></div>
+  </div>
+</div>
+
+<!-- Glossary Manager -->
+<div class="glossary-wrap" id="glossary-wrap">
+  <div class="glossary-header" onclick="toggleGlossary()">
+    <span style="font-weight:600;font-size:14px">📖 术语词典管理 <span style="color:var(--secondary);font-weight:400;font-size:12px">（点击展开，可增删改）</span></span>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="glossary-body">
+    <p class="hint">AI在纠正术语时会参考此词典。左侧为<strong>正确术语</strong>，右侧为<strong>常见转写错误</strong>。可自行增删。</p>
+    <table class="term-table" id="term-table">
+      <thead><tr><th style="width:20%">正确术语</th><th>常见转写错误（多个用逗号分隔）</th><th style="width:40px"></th></tr></thead>
+      <tbody id="term-tbody"></tbody>
+    </table>
+    <div class="glossary-add-row">
+      <input type="text" id="add-term" placeholder="正确术语，如：对赌协议">
+      <input type="text" id="add-errors" placeholder="常见错误，逗号分隔，如：队大协议,兑赌协议">
+      <button class="btn-sm primary" onclick="addTerm()">+ 添加</button>
+    </div>
+    <div class="glossary-actions" style="margin-top:12px">
+      <button class="btn-sm" onclick="resetGlossary()">恢复默认</button>
+      <button class="btn-sm" onclick="exportGlossary()">导出 JSON</button>
+      <button class="btn-sm" onclick="importGlossaryPrompt()">导入 JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importGlossary(event)">
+    </div>
+  </div>
+</div>
+
+<!-- Input Section -->
+<div class="input-section">
+  <div class="section-title"><span class="icon">📝</span> 粘贴转写文本</div>
+  <textarea id="transcript-input" placeholder="粘贴讯飞/通义听悟等工具的录音转写结果...&#10;&#10;例如：&#10;问：请问贵司的VIE架购是否能穿透到最终实控人？&#10;答：我们的队大协议在境内，失控人是王总。&#10;问：那关连交易方面呢？&#10;答：我们签了中大合同，具体要看合规性..."></textarea>
+</div>
+
+<button class="btn-main" id="btn-process" onclick="processTranscript()">🔍 AI 智能分析</button>
+
+<!-- Loading -->
+<div class="loading-wrap" id="loading-wrap"><div class="spinner"></div><span id="loading-text">AI 正在处理中，请稍候...</span></div>
+
+<!-- Error -->
+<div class="error-box" id="error-box"></div>
+
+<!-- Results -->
+<div class="results-wrap" id="results-wrap">
+  <div class="result-tabs">
+    <button class="result-tab active" onclick="switchResultTab('corrected',this)">📝 术语纠正</button>
+    <button class="result-tab" onclick="switchResultTab('structured',this)">📋 结构化纪要</button>
+    <button class="result-tab" onclick="switchResultTab('risks',this)">⚠️ 风险信号</button>
+    <button class="result-tab" onclick="switchResultTab('tips',this)">💡 新人提示</button>
+  </div>
+
+  <div class="result-panel active" id="panel-corrected">
+    <div class="card">
+      <div class="card-title"><span class="emoji">📝</span> 术语纠正对比 <span style="font-size:11px;color:var(--secondary);font-weight:400">（绿色=纠正后，红色删除线=原错误）</span></div>
+      <div class="corrected-body" id="corrected-body"></div>
+    </div>
+  </div>
+
+  <div class="result-panel" id="panel-structured">
+    <div class="card">
+      <div class="card-title"><span class="emoji">📋</span> 结构化访谈纪要</div>
+      <div id="structured-body"></div>
+    </div>
+  </div>
+
+  <div class="result-panel" id="panel-risks">
+    <div class="card" style="background:transparent;border:0;padding:0">
+      <div class="card-title" style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:18px 22px;margin:0"><span class="emoji">⚠️</span> 风险信号识别</div>
+      <div style="background:var(--white);border:1px solid var(--border);border-top:0;border-radius:0 0 var(--radius) var(--radius);padding:18px 22px" id="risks-body"></div>
+    </div>
+  </div>
+
+  <div class="result-panel" id="panel-tips">
+    <div class="card">
+      <div class="card-title"><span class="emoji">💡</span> 新人友好提示</div>
+      <div id="tips-body"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">AI尽调访谈助手 v1.0 · 直连DeepSeek · 术语本地不传云端</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// ── 术语词典 ────────────────────────────────────────
+var DEFAULT_GLOSSARY = [
+  { correct:"对赌协议", errors:"队大协议,对大协议,兑赌协议,对毒协议" },
+  { correct:"VIE架构", errors:"VIE架购,VIE架柜,维埃架构,VIE价购" },
+  { correct:"关联交易", errors:"关连交易,关联交意,关联教义" },
+  { correct:"业绩承诺", errors:"业绩承若,业绩成诺,业绩承认" },
+  { correct:"合规性", errors:"鹤归性,合规星,合规信" },
+  { correct:"股权结构", errors:"估权结构,股权节构,股权杰构" },
+  { correct:"实控人", errors:"失控人,时空人,石控人" },
+  { correct:"穿透核查", errors:"川投核查,穿头核查,穿透和查" },
+  { correct:"同业竞争", errors:"同业净增,同页竞争,同一竞争" },
+  { correct:"无形资产", errors:"无心资产,无行资产" },
+  { correct:"尽职调查", errors:"禁止调查,近期调查,静止调查" },
+  { correct:"重大合同", errors:"中大合同,重点合同,仲大合同" },
+  { correct:"诉讼仲裁", errors:"宋颂仲裁,速送仲裁,输送仲裁" },
+  { correct:"资金占用", errors:"自己占用,资经占用,资金展用" },
+  { correct:"估值调整", errors:"固执调整,顾值调整" },
+  { correct:"合并报表", errors:"何并报表,合并包表" },
+  { correct:"审计报告", errors:"审纪报告,审计报高" },
+  { correct:"股权激励", errors:"估权激励,股权基励" },
+  { correct:"知识产权", errors:"之是产权,只是产权" },
+  { correct:"应收账款", errors:"应收帐款,应收帐宽" }
+];
+
+var glossary = JSON.parse(JSON.stringify(DEFAULT_GLOSSARY));
+
+// Load from localStorage if available
+try {
+  var saved = localStorage.getItem("dd_glossary");
+  if (saved) glossary = JSON.parse(saved);
+} catch(e) {}
+
+function saveGlossary() {
+  try { localStorage.setItem("dd_glossary", JSON.stringify(glossary)); } catch(e) {}
+  document.getElementById("term-count").textContent = glossary.length + "+";
+  renderGlossary();
+}
+
+function renderGlossary() {
+  var tbody = document.getElementById("term-tbody");
+  var html = "";
+  glossary.forEach(function(item, idx) {
+    var errorsHtml = item.errors.split(",").map(function(e) {
+      return "<span>" + escHtml(e.trim()) + "</span>";
+    }).join("");
+    html += "<tr>" +
+      "<td class='correct-term'>" + escHtml(item.correct) + "</td>" +
+      "<td class='errors'>" + errorsHtml + "</td>" +
+      "<td><button class='btn-del' onclick='deleteTerm(" + idx + ")' title='删除'>×</button></td>" +
+      "</tr>";
+  });
+  tbody.innerHTML = html;
+}
+
+function deleteTerm(idx) {
+  glossary.splice(idx, 1);
+  saveGlossary();
+}
+
+function addTerm() {
+  var correct = document.getElementById("add-term").value.trim();
+  var errors = document.getElementById("add-errors").value.trim();
+  if (!correct) { alert("请输入正确术语"); return; }
+  glossary.push({ correct: correct, errors: errors || "" });
+  document.getElementById("add-term").value = "";
+  document.getElementById("add-errors").value = "";
+  saveGlossary();
+}
+
+function resetGlossary() {
+  glossary = JSON.parse(JSON.stringify(DEFAULT_GLOSSARY));
+  saveGlossary();
+}
+
+function exportGlossary() {
+  var json = JSON.stringify(glossary, null, 2);
+  var blob = new Blob([json], {type:"application/json"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = "dd_glossary.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importGlossaryPrompt() {
+  document.getElementById("import-file").click();
+}
+
+function importGlossary(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error("格式错误");
+      glossary = data;
+      saveGlossary();
+    } catch(ex) {
+      alert("导入失败：JSON 格式不正确，需要数组格式");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
+function toggleGlossary() {
+  document.getElementById("glossary-wrap").classList.toggle("open");
+}
+
+// ── 结果 Tab 切换 ────────────────────────────────────
+function switchResultTab(name, btn) {
+  document.querySelectorAll(".result-tab").forEach(function(t) { t.classList.remove("active"); });
+  btn.classList.add("active");
+  document.querySelectorAll(".result-panel").forEach(function(p) { p.classList.remove("active"); });
+  document.getElementById("panel-" + name).classList.add("active");
+}
+
+// ── 工具函数 ──────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return "";
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function show(id) { document.getElementById(id).classList.add("show"); }
+function hide(id) { document.getElementById(id).classList.remove("show"); }
+
+// ── Markdown 渲染 ────────────────────────────────────
+if (typeof marked !== "undefined") {
+  marked.setOptions({ breaks: true, gfm: true, headerIds: false });
+}
+function renderMd(text) {
+  if (!text) return "";
+  if (typeof marked !== "undefined") {
+    try { return marked.parse(text); } catch(e) {}
+  }
+  return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+}
+
+// ── 构建术语表上下文 ──────────────────────────────────
+function buildGlossaryContext() {
+  var lines = [];
+  glossary.forEach(function(item) {
+    if (item.errors.trim()) {
+      lines.push("- 「" + item.correct + "」常被转写为：" + item.errors);
+    }
+  });
+  return lines.join("\n");
+}
+
+// ── API 调用 ─────────────────────────────────────────
+var LLM_KEY = "sk-17f32bfb32f14101941c6207f88fa342";
+var LLM_URL = "https://api.deepseek.com/v1/chat/completions";
+var LLM_MODEL = "deepseek-chat";
+
+var SYSTEM_PROMPT = [
+  "你是一个专业的尽调访谈纪要AI助手。用户会提供录音转写文本（由讯飞/通义听悟等工具生成），你需要完成以下四项任务：",
+  "",
+  "1. **术语纠正**：参考用户提供的术语对照表，自动修正转写文本中的所有专业术语错误。输出纠正后的完整文本，用【纠正：原词→正确词】标注每一处修改。",
+  "2. **结构化提取**：从对话中提取关键问答对，整理为结构化的访谈纪要。每对包含：问（访谈者的问题）、答（被访者的回答要点）、关键信息标注。",
+  "3. **风险信号识别**：扫描回答内容，识别潜在的风险信号或值得深入追问的点。按风险等级（高/中/低）分类输出，每个信号附判断理由。",
+  "4. **新人提示**：对于每个风险信号和专业术语，用通俗易懂的语言解释含义，帮助尽调新人快速理解。",
+  "",
+  "输出格式要求：每个部分用 ###标题### 作为分隔标记，严格按照以下顺序：",
+  "###术语纠正###",
+  "（输出纠正后的完整对话文本，用【纠正：xxx→yyy】格式标注修改处）",
+  "",
+  "###结构化纪要###",
+  "（以 Q: ... / A: ... 格式输出结构化问答对）",
+  "",
+  "###风险信号###",
+  "（每个风险信号用一行：【等级】描述 — 理由：...）",
+  "",
+  "###新人提示###",
+  "（每个提示用通俗语言解释，标注对应的术语或风险）",
+  "",
+  "注意：保持专业、准确、简洁。对于文本中不涉及的内容不要凭空编造。"
+].join("\n");
+
+async function processTranscript() {
+  var input = document.getElementById("transcript-input");
+  var q = input.value.trim();
+  if (!q) {
+    var errEl = document.getElementById("error-box");
+    errEl.textContent = "请先粘贴转写文本";
+    show("error-box");
+    return;
+  }
+
+  var btn = document.getElementById("btn-process");
+  btn.disabled = true;
+  hide("error-box");
+  hide("results-wrap");
+  show("loading-wrap");
+
+  // Loading animation
+  var loadingTexts = ["AI 正在分析中，请稍候...", "正在纠正专业术语...", "正在提取关键问答...", "正在扫描风险信号..."];
+  var li = 0;
+  var loadInterval = setInterval(function() {
+    li = (li + 1) % loadingTexts.length;
+    document.getElementById("loading-text").textContent = loadingTexts[li];
+  }, 2000);
+
+  try {
+    var glossaryCtx = buildGlossaryContext();
+    var userMsg = "【术语对照表】\n" + glossaryCtx + "\n\n【转写文本】\n" + q;
+
+    var resp = await fetch(LLM_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + LLM_KEY },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMsg }
+        ],
+        temperature: 0.3,
+        max_tokens: 4096,
+        stream: false
+      })
+    });
+
+    if (!resp.ok) {
+      var errText;
+      try { var e = await resp.json(); errText = e.error && e.error.message ? e.error.message : JSON.stringify(e); } catch(ex) { errText = "HTTP " + resp.status; }
+      throw new Error("API 错误: " + errText);
+    }
+
+    var data = await resp.json();
+    var content = data.choices[0].message.content;
+    parseAndRender(content);
+    show("results-wrap");
+    document.getElementById("results-wrap").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch(err) {
+    document.getElementById("error-box").textContent = err.message || "处理失败，请检查网络后重试";
+    show("error-box");
+  } finally {
+    clearInterval(loadInterval);
+    hide("loading-wrap");
+    btn.disabled = false;
+  }
+}
+
+// ── 解析 AI 输出 ─────────────────────────────────────
+function parseAndRender(content) {
+  var sections = { corrected: "", structured: "", risks: "", tips: "" };
+
+  // Split by ### markers
+  var parts = content.split(/###(.+?)###/);
+  var currentKey = null;
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim();
+    if (p === "术语纠正" || p === "术语纠正") { currentKey = "corrected"; continue; }
+    if (p === "结构化纪要") { currentKey = "structured"; continue; }
+    if (p === "风险信号") { currentKey = "risks"; continue; }
+    if (p === "新人提示") { currentKey = "tips"; continue; }
+    if (currentKey && p) {
+      sections[currentKey] = (sections[currentKey] ? sections[currentKey] + "\n" : "") + p;
+    }
+  }
+
+  // If parsing failed (no markers found), use the whole content as corrected
+  if (!sections.corrected && !sections.structured && !sections.risks && !sections.tips) {
+    sections.corrected = content;
+  }
+
+  // Render each section
+  renderCorrected(sections.corrected);
+  renderStructured(sections.structured);
+  renderRisks(sections.risks);
+  renderTips(sections.tips);
+}
+
+// ── 渲染术语纠正 ─────────────────────────────────────
+function renderCorrected(text) {
+  if (!text || !text.trim()) {
+    document.getElementById("corrected-body").innerHTML = "<span style='color:var(--secondary)'>AI 处理后无内容，请检查输入文本是否有效。</span>";
+    return;
+  }
+
+  // Highlight corrections: 【纠正：xxx→yyy】
+  var html = escHtml(text);
+  html = html.replace(/【纠正：(.+?)→(.+?)】/g, function(match, wrong, correct) {
+    return "<span class='del'>" + wrong + "</span> → <span class='ins'>" + correct + "</span>";
+  });
+
+  // Handle line breaks
+  html = html.replace(/\n/g, "<br>");
+  document.getElementById("corrected-body").innerHTML = html;
+}
+
+// ── 渲染结构化纪要 ────────────────────────────────────
+function renderStructured(text) {
+  if (!text || !text.trim()) {
+    document.getElementById("structured-body").innerHTML = "<span style='color:var(--secondary)'>未提取到结构化问答对。</span>";
+    return;
+  }
+
+  // Parse Q/A pairs
+  var lines = text.split("\n");
+  var items = [];
+  var current = null;
+
+  lines.forEach(function(line) {
+    line = line.trim();
+    if (!line) return;
+    var qMatch = line.match(/^[Q问][:：]\s*(.+)/);
+    var aMatch = line.match(/^[A答][:：]\s*(.+)/);
+    if (qMatch) {
+      if (current) items.push(current);
+      current = { q: qMatch[1], a: "" };
+    } else if (aMatch && current) {
+      current.a = aMatch[1];
+      items.push(current);
+      current = null;
+    } else if (current) {
+      current.a += (current.a ? "\n" : "") + line;
+    }
+  });
+  if (current) items.push(current);
+
+  if (items.length === 0) {
+    // Fallback: render as markdown
+    document.getElementById("structured-body").innerHTML = renderMd(text);
+    return;
+  }
+
+  var html = "";
+  items.forEach(function(item) {
+    html += "<div class='note-item'>" +
+      "<div class='note-q'>Q: " + escHtml(item.q) + "</div>" +
+      "<div class='note-a'>A: " + escHtml(item.a) + "</div>" +
+      "</div>";
+  });
+  document.getElementById("structured-body").innerHTML = html;
+}
+
+// ── 渲染风险信号 ─────────────────────────────────────
+function renderRisks(text) {
+  if (!text || !text.trim()) {
+    document.getElementById("risks-body").innerHTML = "<span style='color:var(--secondary)'>未识别到明显风险信号。</span>";
+    return;
+  }
+
+  // Parse risk lines: 【等级】描述 — 理由：...
+  var lines = text.split("\n");
+  var risks = [];
+
+  lines.forEach(function(line) {
+    line = line.trim();
+    if (!line) return;
+    var level = "";
+    if (line.indexOf("高") !== -1 && (line.indexOf("高危") !== -1 || line.indexOf("【高】") !== -1 || line.indexOf("高风险") !== -1)) level = "high";
+    else if (line.indexOf("中") !== -1 && (line.indexOf("中危") !== -1 || line.indexOf("【中】") !== -1 || line.indexOf("中风险") !== -1)) level = "medium";
+    else if (line.indexOf("低") !== -1 && (line.indexOf("低危") !== -1 || line.indexOf("【低") !== -1 || line.indexOf("低风险") !== -1)) level = "low";
+    if (!level) level = "medium"; // default
+
+    risks.push({ level: level, text: line });
+  });
+
+  if (risks.length === 0) {
+    document.getElementById("risks-body").innerHTML = renderMd(text);
+    return;
+  }
+
+  var levelLabels = { high: "高风险", medium: "中风险", low: "低风险" };
+  var html = "";
+  risks.forEach(function(r) {
+    html += "<div class='risk-card " + r.level + "'>" +
+      "<span class='risk-level " + r.level + "'>" + levelLabels[r.level] + "</span>" +
+      "<div class='risk-desc'>" + escHtml(r.text).replace(/—/g, "<br>—") + "</div>" +
+      "</div>";
+  });
+  document.getElementById("risks-body").innerHTML = html;
+}
+
+// ── 渲染新人提示 ─────────────────────────────────────
+function renderTips(text) {
+  if (!text || !text.trim()) {
+    document.getElementById("tips-body").innerHTML = "<span style='color:var(--secondary)'>暂无提示内容。</span>";
+    return;
+  }
+
+  var lines = text.split("\n");
+  var tips = [];
+  var currentTip = null;
+
+  lines.forEach(function(line) {
+    line = line.trim();
+    if (!line) return;
+    // Detect a new tip: starts with number, bullet, or specific patterns
+    var isNew = line.match(/^(\d+[.、]|[-•*]|【|💡)/);
+    if (isNew) {
+      if (currentTip) tips.push(currentTip);
+      currentTip = { header: line, body: "" };
+    } else if (currentTip) {
+      currentTip.body += (currentTip.body ? "\n" : "") + line;
+    } else {
+      currentTip = { header: line, body: "" };
+    }
+  });
+  if (currentTip) tips.push(currentTip);
+
+  if (tips.length === 0) {
+    document.getElementById("tips-body").innerHTML = renderMd(text);
+    return;
+  }
+
+  var html = "";
+  tips.forEach(function(tip) {
+    html += "<div class='tip-card'>" +
+      "<div class='tip-header'>" + escHtml(tip.header) + "</div>" +
+      (tip.body ? "<div class='tip-body'>" + escHtml(tip.body) + "</div>" : "") +
+      "</div>";
+  });
+  document.getElementById("tips-body").innerHTML = html;
+}
+
+// ── 初始化 ───────────────────────────────────────────
+document.getElementById("term-count").textContent = glossary.length + "+";
+renderGlossary();
+</script>
+</body>
+</html>
