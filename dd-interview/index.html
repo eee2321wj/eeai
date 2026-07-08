@@ -384,9 +384,8 @@ function buildGlossaryContext() {
 }
 
 // ── API 调用 ─────────────────────────────────────────
-var LLM_PROXY = "https://PROXY_DOMAIN.vercel.app/api/chat"; // Vercel代理地址，部署后替换
-var LLM_KEY = "";
-var LLM_URL = LLM_PROXY || "https://api.deepseek.com/v1/chat/completions";
+var LLM_KEY = "sk-40992eae3b304455a267bddd71d4800e";
+var LLM_URL = "https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL = "deepseek-chat";
 
 var SYSTEM_PROMPT = [
@@ -441,11 +440,9 @@ async function processTranscript() {
     var glossaryCtx = buildGlossaryContext();
     var userMsg = "【术语对照表】\n" + glossaryCtx + "\n\n【转写文本】\n" + q;
 
-    var reqHeaders = { "Content-Type": "application/json" };
-    if (!LLM_PROXY && LLM_KEY) reqHeaders["Authorization"] = "Bearer " + LLM_KEY;
     var resp = await fetch(LLM_URL, {
       method: "POST",
-      headers: reqHeaders,
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + LLM_KEY },
       body: JSON.stringify({
         model: LLM_MODEL,
         messages: [
