@@ -232,8 +232,9 @@ function switchTab(name,btn){
 }
 
 // ── API 配置 ──
-var LLM_KEY = "sk-17f32bfb32f14101941c6207f88fa342";
-var LLM_URL = "https://api.deepseek.com/v1/chat/completions";
+var LLM_PROXY = "https://PROXY_DOMAIN.vercel.app/api/chat"; // Vercel代理，部署后替换
+var LLM_KEY = "";
+var LLM_URL = LLM_PROXY || "https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL = "deepseek-chat";
 
 // 专家 Persona System Prompt
@@ -402,9 +403,11 @@ async function callDeepSeek(question,usePersona){
     kbContext=parts.join("\n\n---\n\n");
   }
   var msgs=buildMsgs(question,kbContext,usePersona);
+  var reqHeaders={"Content-Type":"application/json"};
+  if(!LLM_PROXY&&LLM_KEY) reqHeaders["Authorization"]="Bearer "+LLM_KEY;
   var resp=await fetch(LLM_URL,{
     method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY},
+    headers:reqHeaders,
     body:JSON.stringify({model:LLM_MODEL,messages:msgs,temperature:0.3,max_tokens:2048,stream:false})
   });
   if(!resp.ok){
