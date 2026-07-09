@@ -308,6 +308,8 @@ body {
 .empty-state { text-align: center; padding: 40px; color: var(--text-tertiary); }
 .empty-icon { margin-bottom: 8px; }
 .empty-icon svg { opacity: 0.35; }
+.streaming-text{color:var(--text-tertiary);font-size:14px;padding:16px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
 /* ⭐ 彩蛋：世界上最漂亮的人 */
 .egg-bubble{border-radius:12px;overflow:hidden;animation:eggFadeIn .6s ease-out;border:1px solid var(--border);max-width:520px;margin:0 auto}
 @keyframes eggFadeIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
@@ -736,15 +738,30 @@ function saveKey(v){LLM_KEY=v;localStorage.setItem('dd-llm-key',v);}
 function saveEndpoint(v){LLM_URL=v||"https://api.deepseek.com/v1/chat/completions";localStorage.setItem('dd-endpoint',v);}
 function hasAPI(){return !!LLM_KEY||!!LLM_URL;}
 
-async function callLLM(messages,temp,maxTokens){
+async function callLLM(messages,temp,maxTokens,onChunk){
   if(!LLM_URL)throw new Error("NO_API_KEY");
   var headers={"Content-Type":"application/json"};
   if(LLM_KEY)headers["Authorization"]="Bearer "+LLM_KEY;
+  var useStream=!!onChunk;
   var resp=await fetch(LLM_URL,{
     method:"POST",headers:headers,
-    body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||4096,stream:false})
+    body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||2048,stream:useStream})
   });
   if(!resp.ok){var e;try{e=await resp.json();}catch(_){e={error:{message:"HTTP "+resp.status}};}throw new Error(e.error&&e.error.message?e.error.message:JSON.stringify(e));}
+  if(useStream){
+    var reader=resp.body.getReader();var decoder=new TextDecoder();var full="";var buf="";
+    while(true){
+      var p=await reader.read();if(p.done)break;
+      buf+=decoder.decode(p.value,{stream:true});
+      var lines=buf.split("\n");buf=lines.pop()||"";
+      for(var i=0;i<lines.length;i++){
+        var ln=lines[i].trim();if(!ln.startsWith("data: "))continue;
+        var j=ln.slice(6);if(j==="[DONE]")continue;
+        try{var dt=JSON.parse(j);var dl=dt.choices[0].delta;if(dl.content){full+=dl.content;onChunk(full,dl.content);}}catch(_){}
+      }
+    }
+    return full;
+  }
   var d=await resp.json();
   return d.choices[0].message.content;
 }
@@ -838,7 +855,9 @@ async function doKBQuery(){
       }
       var sys=CYPROMPT;
       if(kbContext)sys+="\n\n---\n\n# 知识库参考资料\n\n"+kbContext+"\n\n如果知识库内容与问题相关，请引用具体内容；不相关则基于专业知识回答。";
-      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}]);
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}],0.3,2048,function(full){
+        document.getElementById('answer-kb').innerHTML=renderMd(full);
+      });
       document.getElementById('answer-kb').innerHTML=renderMd(answer);
     } else {
       if(kbResults.length>0){
@@ -1000,9 +1019,10 @@ async function doInterview(){
     var userMsg="企业名称："+company+"\n行业："+industry+"\n尽调目的："+purpose+(extra?"\n补充说明："+extra:"");
     ivMessages=[{role:"system",content:sys},{role:"user",content:userMsg}];
     try{
-      var answer=await callLLM(ivMessages,0.4,4096);
+      var answer=await callLLM(ivMessages,0.4,2048,function(full){
+        document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(full)+'</div></div>';
+      });
       ivMessages.push({role:"assistant",content:answer});
-      document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(answer)+'</div></div>';
       show('result-iv');
     }catch(err){showE('error-iv',err.message);}
     finally{btn.disabled=false;hide('loading-iv');}
@@ -1028,10 +1048,16 @@ async function doIVFollowup(){
   chat.innerHTML+='<div class="chat-msg user">'+escHtml(q)+'</div>';
   try{
     ivMessages.push({role:"user",content:q});
-    var answer=await callLLM(ivMessages,0.4,2048);
+    var answer=await callLLM(ivMessages,0.4,2048,function(full){
+      var msg=chat.lastElementChild;
+      if(!msg||!msg.classList.contains('ai')){
+        chat.innerHTML+='<div class="chat-msg ai"><div class="answer">'+renderMd(full)+'</div></div>';
+      }else{
+        msg.querySelector('.answer').innerHTML=renderMd(full);
+      }
+      chat.scrollTop=chat.scrollHeight;
+    });
     ivMessages.push({role:"assistant",content:answer});
-    chat.innerHTML+='<div class="chat-msg ai"><div class="answer">'+renderMd(answer)+'</div></div>';
-    chat.scrollTop=chat.scrollHeight;
   }catch(err){showE('error-iv',err.message);}
 }
 
@@ -1181,14 +1207,16 @@ async function doFinance(){
   btn.disabled=true;
   show('loading-fa');hide('result-fa');hide('error-fa');
   if(hasAPI()){
-    var sys="你是一名财务分析师，正在为财务尽调项目分析目标公司财务数据。\n\n输出要求：\n1. 毛利率分析（趋势+变动原因）\n2. 应收账款分析（周转+账龄推测+集中度）\n3. 存货分析（周转+减值风险）\n4. 现金流分析（经营/投资/筹资）\n5. 波动说明（重大变动项的解释）\n\n重要：不要输出结论性判断，而是用「建议继续关注」的表述方式，符合事务所表达习惯。\n用 Markdown 格式输出。";
-    var userMsg="以下是目标公司的财务数据（单位：万元）：\n\n## 利润表\n"+(income||"未提供")+"\n\n## 资产负债表\n"+(balance||"未提供");
-    try{
-      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
-      document.getElementById('answer-fa').innerHTML=renderMd(answer);
-      show('result-fa');
-    }catch(err){showE('error-fa',err.message);}
-    finally{btn.disabled=false;hide('loading-fa');}
+  var sys="你是一名财务分析师，正在为财务尽调项目分析目标公司财务数据。\n\n输出要求：\n1. 毛利率分析（趋势+变动原因）\n2. 应收账款分析（周转+账龄推测+集中度）\n3. 存货分析（周转+减值风险）\n4. 现金流分析（经营/投资/筹资）\n5. 波动说明（重大变动项的解释）\n\n重要：不要输出结论性判断，而是用「建议继续关注」的表述方式，符合事务所表达习惯。\n用 Markdown 格式输出。";
+  var userMsg="以下是目标公司的财务数据（单位：万元）：\n\n## 利润表\n"+(income||"未提供")+"\n\n## 资产负债表\n"+(balance||"未提供");
+  try{
+    document.getElementById('answer-fa').innerHTML='<div class="streaming-text">AI正在分析...</div>';
+    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,2048,function(full){
+      document.getElementById('answer-fa').innerHTML=renderMd(full);
+    });
+    show('result-fa');
+  }catch(err){showE('error-fa',err.message);}
+  finally{btn.disabled=false;hide('loading-fa');}
   } else {
     setTimeout(function(){
       var analysis=genFinanceAnalysis(income,balance);
@@ -1236,7 +1264,10 @@ async function doRisk(){
     var sys="你是一名财务尽调风险分析师。根据企业基本情况，输出五维度风险评估。\n\n输出格式要求（严格遵守）：\n第一行输出总体风险等级（1-5），格式：RATING:数字\n\n然后输出五个维度的评估，每个维度格式：\nDIM:维度名称|等级(high/medium/low)|简述\n\n五个维度：\n1. 收入确认\n2. 客户集中\n3. 持续经营\n4. 关联交易\n5. 资金占用\n\n最后用 Markdown 输出详细分析。";
     var userMsg="企业名称："+company+"\n行业："+(industry||"未提供")+"\n营收规模："+(revenue||"未提供")+"万元\n员工人数："+(emp||"未提供")+"\n关键风险词："+(kw||"无");
     try{
-      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
+      document.getElementById('result-rk').innerHTML='<div class="streaming-text">AI正在评估风险...</div>';
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,2048,function(full){
+        document.getElementById('result-rk').innerHTML=renderMd(full);
+      });
       var ratingMatch=answer.match(/RATING:\s*(\d)/);
       var rating=ratingMatch?parseInt(ratingMatch[1]):3;
       var stars='★★★★★'.substring(0,rating)+'☆☆☆☆☆'.substring(0,5-rating);
@@ -1535,9 +1566,10 @@ async function doReport(){
     var sys="你是一名会计师事务所的高级审计经理。将用户提供的原始访谈纪要或笔记，优化为事务所风格的正式表达。\n\n要求：\n1. 保持原意不变\n2. 用语专业、简洁、客观\n3. 结构化分点表述\n4. 去除口语化表达和冗余信息\n5. 标注需要进一步核实的事项\n\n用 Markdown 格式输出。";
     rpMessages=[{role:"system",content:sys},{role:"user",content:input}];
     try{
-      var answer=await callLLM(rpMessages,0.3,4096);
+      var answer=await callLLM(rpMessages,0.3,2048,function(full){
+        document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(full)+'</div>';
+      });
       rpMessages.push({role:"assistant",content:answer});
-      document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(answer)+'</div>';
     }catch(err){showE('error-rp',err.message);}
     finally{btn.disabled=false;hide('loading-rp');}
   } else {
@@ -1557,9 +1589,10 @@ async function doReportPolish(){
   show('loading-rp');hide('error-rp');
   rpMessages.push({role:"user",content:"请继续润色，使表达更加精炼专业。"});
   try{
-    var answer=await callLLM(rpMessages,0.3,4096);
+    var answer=await callLLM(rpMessages,0.3,2048,function(full){
+      document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(full)+'</div>';
+    });
     rpMessages.push({role:"assistant",content:answer});
-    document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(answer)+'</div>';
   }catch(err){showE('error-rp',err.message);}
   finally{btn.disabled=false;hide('loading-rp');}
 }
