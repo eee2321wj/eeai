@@ -647,8 +647,15 @@ body {
     </div>
     <div class="settings-row">
       <div>
+        <div class="settings-label">API 端点</div>
+        <div class="settings-desc">直接 DeepSeek 或用 Cloudflare Worker 代理</div>
+      </div>
+      <input class="form-input" id="setting-endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" style="width:380px" oninput="saveEndpoint(this.value)">
+    </div>
+    <div class="settings-row">
+      <div>
         <div class="settings-label">API Key</div>
-        <div class="settings-desc">DeepSeek API Key（配置后启用 AI 功能）</div>
+        <div class="settings-desc">直连 DeepSeek 时需要；使用 Worker 代理则留空</div>
       </div>
       <input class="form-input" id="setting-key" placeholder="sk-..." style="width:300px" oninput="saveKey(this.value)">
     </div>
@@ -704,17 +711,22 @@ function toggleTheme(){
 
 // ── API Config ────────────────────────────────────────
 var LLM_KEY=localStorage.getItem('dd-llm-key')||"";
-var LLM_URL="https://api.deepseek.com/v1/chat/completions";
+var LLM_URL=localStorage.getItem('dd-endpoint')||"https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL="deepseek-chat";
-if(LLM_KEY)document.getElementById('setting-key').value=LLM_KEY;
+(function initAPIConfig(){
+  if(LLM_KEY)document.getElementById('setting-key').value=LLM_KEY;
+  if(localStorage.getItem('dd-endpoint'))document.getElementById('setting-endpoint').value=LLM_URL;
+})();
 function saveKey(v){LLM_KEY=v;localStorage.setItem('dd-llm-key',v);}
-function hasAPI(){return !!LLM_KEY;}
+function saveEndpoint(v){LLM_URL=v||"https://api.deepseek.com/v1/chat/completions";localStorage.setItem('dd-endpoint',v);}
+function hasAPI(){return !!LLM_KEY||!!LLM_URL;}
 
 async function callLLM(messages,temp,maxTokens){
-  if(!LLM_KEY)throw new Error("NO_API_KEY");
+  if(!LLM_URL)throw new Error("NO_API_KEY");
+  var headers={"Content-Type":"application/json"};
+  if(LLM_KEY)headers["Authorization"]="Bearer "+LLM_KEY;
   var resp=await fetch(LLM_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY},
+    method:"POST",headers:headers,
     body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||4096,stream:false})
   });
   if(!resp.ok){var e;try{e=await resp.json();}catch(_){e={error:{message:"HTTP "+resp.status}};}throw new Error(e.error&&e.error.message?e.error.message:JSON.stringify(e));}
