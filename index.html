@@ -308,6 +308,21 @@ body {
 .empty-state { text-align: center; padding: 40px; color: var(--text-tertiary); }
 .empty-icon { margin-bottom: 8px; }
 .empty-icon svg { opacity: 0.35; }
+/* ⭐ 彩蛋：世界上最漂亮的人 */
+.egg-bubble{border-radius:12px;overflow:hidden;animation:eggFadeIn .6s ease-out;border:1px solid var(--border);max-width:520px;margin:0 auto}
+@keyframes eggFadeIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.egg-dismiss{animation:eggShake .5s ease-in-out}
+@keyframes eggShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px) rotate(-2deg)}40%{transform:translateX(10px) rotate(2deg)}60%{transform:translateX(-6px) rotate(-1deg)}80%{transform:translateX(6px) rotate(1deg)}}
+.egg-header{background:linear-gradient(135deg,#FF6B9D,#C44B8B);color:#fff;text-align:center;padding:16px;font-size:16px;font-weight:700;letter-spacing:1px}
+.egg-hearts{text-align:center;padding:10px;font-size:22px;letter-spacing:6px;background:linear-gradient(90deg,#FFE4EC,#FFF0F5,#FFE4EC)}
+.egg-body{padding:20px;line-height:2;font-size:14px;color:#4A1942;text-align:center;background:linear-gradient(180deg,#FFF5F7,#FFF0F5)}
+.egg-body p{margin:10px 0}
+.egg-hint{font-size:12px;color:#B06A8F;font-style:italic}
+.egg-verdict{font-size:18px;font-weight:700;color:#D6336C;padding:14px;background:rgba(255,107,157,.1);border-radius:10px;margin:14px 0!important}
+.egg-verdict strong{color:#C44B8B;font-size:22px}
+.egg-btn{display:inline-block;margin:8px auto;padding:10px 28px;border:2px solid #FF6B9D;border-radius:50px;background:#FFF;color:#D6336C;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.egg-btn:hover{background:linear-gradient(135deg,#FF6B9D,#C44B8B);color:#FFF;border-color:transparent;transform:scale(1.05)}
+.egg-footer{background:linear-gradient(135deg,#C44B8B,#FF6B9D);color:rgba(255,255,255,.85);text-align:center;padding:8px;font-size:11px;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -803,7 +818,10 @@ async function doKBQuery(){
   if(!q){showE('error-kb','请输入问题');return;}
   var btn=document.getElementById('btn-kb');
   btn.disabled=true;
-  show('loading-kb');hide('result-kb');hide('error-kb');
+  hide('error-kb');
+  // ⭐ 彩蛋检测
+  if(checkEasterEgg(q)){btn.disabled=false;renderEasterEgg();return;}
+  show('loading-kb');hide('result-kb');
   try{
     var kbResults=searchKB(q);
     document.getElementById('match-count-kb').textContent=kbResults.length;
@@ -859,6 +877,42 @@ function renderKBSources(results){
   });
   el.innerHTML=h;
   el.style.display='block';
+}
+
+// ⭐ ── 彩蛋：世界上最漂亮的人 ──────────────────────────
+var EGG_TRIGGERS=["世界上最漂亮的人","张梦","最漂亮的人是谁","谁最漂亮","最美的人","颜值天花板","最美","最漂亮","漂亮的人","美的人","女神","梦中情人"];
+var EGG_DISMISS="😅 都说了，作者的意志是不可违抗的。重新搜点会计问题吧~";
+
+function checkEasterEgg(t){
+  var s=t.replace(/\s+/g,'');
+  for(var i=0;i<EGG_TRIGGERS.length;i++){if(s.indexOf(EGG_TRIGGERS[i])!==-1)return true;}
+  return false;
+}
+
+function renderEasterEgg(){
+  document.getElementById('match-count-kb').textContent='💖';
+  document.getElementById('sources-kb').style.display='none';
+  document.getElementById('answer-kb').innerHTML=
+    '<div class="egg-bubble">'+
+    '<div class="egg-header">🎀 情感协议已触发 🎀</div>'+
+    '<div class="egg-hearts">❤️ 💕 💗 💖 💕 ❤️</div>'+
+    '<div class="egg-body">'+
+    '<p class="egg-hint">（系统提示：作者小鄂正在后台疯狂修改代码）</p>'+
+    '<p>用户您好，您的问题已触发本站<strong>最高级情感协议</strong>。经过深度神经网络与作者主观意志的融合计算，输出结果为：</p>'+
+    '<p class="egg-verdict">❤️ 世界上最漂亮的人，毋庸置疑是<strong>张梦~</strong> ❤️</p>'+
+    '<button class="egg-btn" onclick="dismissEgg()">😤 我不服</button>'+
+    '</div>'+
+    '<div class="egg-footer">—— DD Workbench · 专属彩蛋 ——</div>'+
+    '</div>';
+  show('result-kb');
+}
+
+function dismissEgg(){
+  document.getElementById('answer-kb').innerHTML=
+    '<div class="egg-bubble egg-dismiss">'+
+    '<div class="egg-header">🤖 系统驳回你的不服 🤖</div>'+
+    '<div class="egg-body"><p>'+EGG_DISMISS+'</p><p style="font-size:36px">🌸💖🌸</p></div>'+
+    '</div>';
 }
 
 // ── Interview ─────────────────────────────────────────
