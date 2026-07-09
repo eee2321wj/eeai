@@ -99,7 +99,8 @@ body {
 }
 .nav-item:hover { background: var(--bg-tertiary); color: var(--text); }
 .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-icon { width: 20px; height: 20px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-icon svg { width: 18px; height: 18px; }
 .sidebar-footer {
   padding: 12px 16px; border-top: 1px solid var(--border-light);
   font-size: 11px; color: var(--text-tertiary);
@@ -248,7 +249,8 @@ body {
 .wp-arrow { color: var(--text-tertiary); }
 .wp-upload { border: 2px dashed var(--border); border-radius: var(--radius-lg); padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
 .wp-upload:hover { border-color: var(--accent); }
-.wp-upload-icon { font-size: 36px; margin-bottom: 8px; }
+.wp-upload-icon { margin-bottom: 8px; }
+.wp-upload-icon svg { opacity: 0.6; }
 .wp-progress { height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; margin: 16px 0; }
 .wp-progress-bar { height: 100%; background: var(--accent); transition: width 0.5s; border-radius: 3px; }
 
@@ -304,7 +306,8 @@ body {
 .mono { font-family: "SF Mono","Fira Code","Consolas",monospace; }
 .hr { height: 1px; background: var(--border-light); margin: 20px 0; }
 .empty-state { text-align: center; padding: 40px; color: var(--text-tertiary); }
-.empty-icon { font-size: 32px; margin-bottom: 8px; }
+.empty-icon { margin-bottom: 8px; }
+.empty-icon svg { opacity: 0.35; }
 </style>
 </head>
 <body>
@@ -326,34 +329,34 @@ body {
     <div class="nav-section">
       <div class="nav-label">工作台</div>
       <div class="nav-item active" onclick="nav('home',this)">
-        <span class="nav-icon">🏠</span><span class="nav-text">首页</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-text">首页</span>
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">尽调流程</div>
       <div class="nav-item" onclick="nav('kb',this)">
-        <span class="nav-icon">📚</span><span class="nav-text">准则查询</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span><span class="nav-text">准则查询</span>
       </div>
       <div class="nav-item" onclick="nav('interview',this)">
-        <span class="nav-icon">🎤</span><span class="nav-text">访谈助手</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span><span class="nav-text">访谈助手</span>
       </div>
       <div class="nav-item" onclick="nav('finance',this)">
-        <span class="nav-icon">📊</span><span class="nav-text">财务分析</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span class="nav-text">财务分析</span>
       </div>
       <div class="nav-item" onclick="nav('risk',this)">
-        <span class="nav-icon">⚠️</span><span class="nav-text">风险雷达</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span class="nav-text">风险雷达</span>
       </div>
       <div class="nav-item" onclick="nav('wp',this)">
-        <span class="nav-icon">📂</span><span class="nav-text">底稿自动化</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><span class="nav-text">底稿自动化</span>
       </div>
       <div class="nav-item" onclick="nav('report',this)">
-        <span class="nav-icon">📝</span><span class="nav-text">报告助手</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span><span class="nav-text">报告助手</span>
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">系统</div>
       <div class="nav-item" onclick="nav('settings',this)">
-        <span class="nav-icon">⚙️</span><span class="nav-text">设置</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-text">设置</span>
       </div>
     </div>
   </div>
@@ -374,7 +377,7 @@ body {
     <div class="home-tagline">将 AI 与自动化融入财务尽调全流程，让重复工作交给 AI，把时间留给专业判断。</div>
   </div>
   <div class="workflow">
-    <div class="workflow-step" onclick="nav('kb',document.querySelectorAll('.nav-item')[1])">
+    <div class="workflow-step" style="cursor:default;opacity:0.7" onclick="">
       <div class="workflow-num">1</div>
       <div><div class="workflow-text">收到资料</div><div class="workflow-sub">获取标的基本信息与财务数据</div></div>
     </div>
@@ -568,7 +571,7 @@ body {
   </div>
   <div class="card">
     <div class="wp-upload" id="wp-upload-zone" onclick="document.getElementById('wp-file').click()">
-      <div class="wp-upload-icon">📂</div>
+      <div class="wp-upload-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 16 12 9"/><polyline points="9 12 12 9 15 12"/></svg></div>
       <div style="font-size:14px;font-weight:600">点击上传科目余额表（.xlsx）</div>
       <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">支持多主体多年度余额表批量处理</div>
     </div>
@@ -584,14 +587,14 @@ body {
   </div>
   <div id="wp-done-area" style="display:none">
     <div class="card" style="text-align:center;padding:32px">
-      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="margin-bottom:8px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div style="font-size:16px;font-weight:700;margin-bottom:4px">科目底稿生成完成</div>
       <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px" id="wp-summary"></div>
       <button class="btn btn-primary" onclick="downloadWP()">⬇ 下载 Excel 底稿</button>
     </div>
   </div>
   <div class="card" style="margin-top:16px">
-    <div class="card-title">📋 底稿结构说明</div>
+    <div class="card-title">底稿结构说明</div>
     <div style="font-size:12px;color:var(--text-secondary);line-height:1.8">
       • 左侧：上报告部分（合并层 vs 余额表汇总 vs 差额）<br>
       • 右侧：各主体科目余额表明细（按年度纵向堆叠）<br>
@@ -616,7 +619,7 @@ body {
     <div class="split-col">
       <span class="split-label ai">AI 优化结果</span>
       <div id="rp-output" style="min-height:300px;overflow-y:auto">
-        <div class="empty-state"><div class="empty-icon">📝</div><div>在左侧粘贴内容后点击「开始优化」</div></div>
+        <div class="empty-state"><div class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div>在左侧粘贴内容后点击「开始优化」</div></div>
       </div>
     </div>
   </div>
@@ -779,7 +782,7 @@ function searchKB(question){
     if(score>0)results.push({item:item,score:Math.round(score*10)/10,type:"qa"});
   });
   results.sort(function(a,b){return b.score-a.score;});
-  return results.filter(function(r){return r.score>=8;});
+  return results.filter(function(r){return r.score>=5;}).slice(0,20);
 }
 
 // ── KB Query ──────────────────────────────────────────
@@ -811,14 +814,14 @@ async function doKBQuery(){
       document.getElementById('answer-kb').innerHTML=renderMd(answer);
     } else {
       if(kbResults.length>0){
-        var ans='### 🔍 本地知识库匹配结果（共'+kbResults.length+'条）\n\n';
+        var ans='### 本地知识库匹配结果（共'+kbResults.length+'条）\n\n';
         kbResults.slice(0,3).forEach(function(r,i){
           ans+='#### '+(i+1)+'. '+r.item.q+'\n\n'+r.item.a.substring(0,600)+'\n\n> 来源：'+escHtml(r.item.src||'陈奕蔚论坛')+' | 匹配度：'+Math.round(Math.min(r.score/60,1)*100)+'%\n\n---\n\n';
         });
-        ans+='> 💡 配置API Key后可获得AI智能回答（追问、准则引用、实务建议）。\n';
+        ans+='> **提示** 配置API Key后可获得AI智能回答（追问、准则引用、实务建议）。\n';
         document.getElementById('answer-kb').innerHTML=renderMd(ans);
       } else {
-        document.getElementById('answer-kb').innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div>未找到相关知识条目</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">请尝试其他关键词，或配置API Key获取AI回答</div></div>';
+        document.getElementById('answer-kb').innerHTML='<div class="empty-state"><div class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div>未找到相关知识条目</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">请尝试其他关键词，或配置API Key获取AI回答</div></div>';
       }
     }
     show('result-kb');
@@ -942,9 +945,11 @@ async function doInterview(){
     setTimeout(function(){
       var outline=genInterviewOutline(company,industry,purpose,extra);
       document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(outline)+'</div></div>';
+      // Populate messages so follow-up has context
+      ivMessages=[{role:'assistant',content:outline}];
       show('result-iv');
       btn.disabled=false;hide('loading-iv');
-    },500);
+    },300);
   }
 }
 
@@ -952,7 +957,7 @@ async function doIVFollowup(){
   var q=document.getElementById('iv-followup').value.trim();
   if(!q)return;
   if(!ivMessages.length){showE('error-iv','请先生成访谈提纲');return;}
-  if(!hasAPI()){showE('error-iv','追问功能需要配置 API Key，当前为Demo模式');return;}
+  if(!hasAPI()){showE('error-iv','追问功能需配置 API Key。当前为 Demo 模式，可修改上方参数后重新生成提纲。');setTimeout(function(){hide('error-iv');},3000);return;}
   document.getElementById('iv-followup').value='';
   var chat=document.getElementById('chat-iv');
   chat.innerHTML+='<div class="chat-msg user">'+escHtml(q)+'</div>';
@@ -1012,7 +1017,7 @@ function genFinanceAnalysis(income,balance){
   var bal=parseTable(balance);
   var lines=[];
   lines.push('# 财务分析报告');
-  if(!hasAPI())lines.push('\n> 💡 当前为Demo模式（基于输入数据自动计算指标）。配置API Key后可获得AI深度分析。\n');
+  if(!hasAPI())lines.push('\n> **提示** 当前为Demo模式（基于输入数据自动计算指标）。配置API Key后可获得AI深度分析。\n');
   var rev=inc['营业收入'];
   if(rev&&rev.length>=2){
     lines.push('## 一、营业收入分析\n');
@@ -1098,8 +1103,8 @@ function genFinanceAnalysis(income,balance){
   lines.push('3. 应收账款回款情况及信用风险管理');
   lines.push('4. 存货周转效率及减值风险评估');
   lines.push('5. 资产负债结构合理性及偿债能力分析');
-  if(!hasAPI())lines.push('\n> ⚠ 以上分析为Demo模式自动计算生成。实际尽调应获取完整审计报告并做深入分析。');
-  lines.push('> 📌 事务所提示：本分析不构成最终结论，建议继续关注上述事项并获取进一步审计证据。');
+  if(!hasAPI())lines.push('\n> **注意** 以上分析为Demo模式自动计算生成。实际尽调应获取完整审计报告并做深入分析。');
+  lines.push('> **提示** 事务所提示：本分析不构成最终结论，建议继续关注上述事项并获取进一步审计证据。');
   return lines.join('\n');
 }
 
@@ -1214,19 +1219,19 @@ async function doRisk(){
       document.getElementById('risk-grid').innerHTML=h;
       var dl=[];
       dl.push('## 风险评估详情 — '+escHtml(company));
-      if(!hasAPI())dl.push('\n> 💡 当前为Demo模式（基于规则评分）。配置API Key后可获得AI深度风险分析。\n');
+      if(!hasAPI())dl.push('\n> **提示** 当前为Demo模式（基于规则评分）。配置API Key后可获得AI深度风险分析。\n');
       dl.push('**行业**：'+(industry||'未提供')+' | **营收规模**：'+(revenue||'未提供')+'万元 | **员工**：'+(emp||'未提供')+'人');
       if(kw)dl.push('\n**用户标注风险点**：'+kw);
       dl.push('\n### 各维度分析');
       result.dims.forEach(function(d){
-        dl.push('\n#### '+d.name+'（'+{'high':'🔴 高风险','medium':'🟡 中风险','low':'🟢 低风险'}[d.level]+'）');
+        dl.push('\n#### '+d.name+'（'+{'high':'**高风险**','medium':'**中风险**','low':'**低风险**'}[d.level]+'）');
         dl.push(d.desc);
       });
       dl.push('\n### 整体建议');
       dl.push('1. 建议获取标的公司最近三年审计报告及最新一期财务报表');
       dl.push('2. 对高风险维度进行专项核查，获取充分适当的审计证据');
       dl.push('3. 结合行业基准数据，评估各项指标是否处于合理区间');
-      dl.push('\n> 📌 以上评估基于有限信息生成，实际尽调风险等级以现场工作结果为准。');
+      dl.push('\n> **提示** 以上评估基于有限信息生成，实际尽调风险等级以现场工作结果为准。');
       document.getElementById('answer-rk').innerHTML=renderMd(dl.join('\n'));
       show('result-rk');
       btn.disabled=false;hide('loading-rk');
@@ -1258,7 +1263,7 @@ function onWPUpload(input){
   if(wpFiles.length===0){list.innerHTML='';return;}
   var h='<div style="font-size:12px;font-weight:600;margin-bottom:6px">已选择 '+wpFiles.length+' 个文件：</div>';
   wpFiles.forEach(function(f){
-    h+='<div style="font-size:12px;color:var(--text-secondary);padding:2px 0">📄 '+escHtml(f.name)+' <span class="muted">('+(f.size/1024).toFixed(1)+' KB)</span></div>';
+    h+='<div style="font-size:12px;color:var(--text-secondary);padding:2px 0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-3px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'+escHtml(f.name)+' <span class="muted">('+(f.size/1024).toFixed(1)+' KB)</span></div>';
   });
   h+='<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="startWP()">开始处理</button></div>';
   list.innerHTML=h;
@@ -1319,6 +1324,12 @@ function processSubject(name,cfg,allData){
 
 async function startWP(){
   if(wpFiles.length===0){document.getElementById('wp-upload-zone').style.borderColor='var(--red)';setTimeout(function(){document.getElementById('wp-upload-zone').style.borderColor='';},1500);return;}
+  // Reset step indicators
+  ['wp-s1','wp-s2','wp-s3','wp-s4'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.classList.remove('active','done');
+    el.style.background='';el.style.color='';
+  });
   document.getElementById('wp-s1').classList.add('done');
   document.getElementById('wp-s2').classList.add('active');
   document.getElementById('wp-process-area').style.display='block';
@@ -1445,7 +1456,7 @@ function genReportPolish(input){
   lines.push('1. 上述信息为初步访谈纪要整理，具体数据需获取相关支撑材料验证');
   lines.push('2. 关键财务数据需与审计报告及原始凭证核对');
   lines.push('3. 法律事项需由律师出具专业法律意见');
-  if(!hasAPI())lines.push('\n> 💡 当前为Demo模式（基础文本整理）。配置API Key后可获得AI深度润色。');
+  if(!hasAPI())lines.push('\n> **提示** 当前为Demo模式（基础文本整理）。配置API Key后可获得AI深度润色。');
   return lines.join('\n');
 }
 
