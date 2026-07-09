@@ -358,7 +358,7 @@ body {
     </div>
   </div>
   <div class="sidebar-footer">
-    v1.0 · Demo Build
+    v2.0 · Demo Ready
   </div>
 </div>
 
@@ -670,6 +670,7 @@ body {
 </div><!-- /main -->
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  DD Workbench — Core JavaScript
@@ -706,9 +707,10 @@ var LLM_URL="https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL="deepseek-chat";
 if(LLM_KEY)document.getElementById('setting-key').value=LLM_KEY;
 function saveKey(v){LLM_KEY=v;localStorage.setItem('dd-llm-key',v);}
+function hasAPI(){return !!LLM_KEY;}
 
 async function callLLM(messages,temp,maxTokens){
-  if(!LLM_KEY)throw new Error("请先在设置中配置 API Key");
+  if(!LLM_KEY)throw new Error("NO_API_KEY");
   var resp=await fetch(LLM_URL,{
     method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+LLM_KEY},
@@ -786,27 +788,39 @@ var CYPROMPT="# 你的身份\n\n你是资深会计准则顾问，精通中国企
 async function doKBQuery(){
   var q=document.getElementById('input-kb').value.trim();
   if(!q){showE('error-kb','请输入问题');return;}
-  if(!LLM_KEY){showE('error-kb','请先在设置中配置 API Key');return;}
   var btn=document.getElementById('btn-kb');
   btn.disabled=true;
   show('loading-kb');hide('result-kb');hide('error-kb');
   try{
     var kbResults=searchKB(q);
-    var kbContext="";
-    if(kbResults.length>0){
-      var parts=[];
-      for(var i=0;i<Math.min(kbResults.length,5);i++){
-        var r=kbResults[i];
-        parts.push("【参考"+(i+1)+"·ID="+r.item.id+"】问题:"+r.item.q+"\n回答:"+(r.item.a||"").substring(0,600));
-      }
-      kbContext=parts.join("\n\n---\n\n");
-    }
-    var sys=CYPROMPT;
-    if(kbContext)sys+="\n\n---\n\n# 知识库参考资料\n\n"+kbContext+"\n\n如果知识库内容与问题相关，请引用具体内容；不相关则基于专业知识回答。";
-    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}]);
-    document.getElementById('answer-kb').innerHTML=renderMd(answer);
     document.getElementById('match-count-kb').textContent=kbResults.length;
     renderKBSources(kbResults);
+    if(hasAPI()){
+      var kbContext="";
+      if(kbResults.length>0){
+        var parts=[];
+        for(var i=0;i<Math.min(kbResults.length,5);i++){
+          var r=kbResults[i];
+          parts.push("【参考"+(i+1)+"·ID="+r.item.id+"】问题:"+r.item.q+"\n回答:"+(r.item.a||"").substring(0,600));
+        }
+        kbContext=parts.join("\n\n---\n\n");
+      }
+      var sys=CYPROMPT;
+      if(kbContext)sys+="\n\n---\n\n# 知识库参考资料\n\n"+kbContext+"\n\n如果知识库内容与问题相关，请引用具体内容；不相关则基于专业知识回答。";
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}]);
+      document.getElementById('answer-kb').innerHTML=renderMd(answer);
+    } else {
+      if(kbResults.length>0){
+        var ans='### 🔍 本地知识库匹配结果（共'+kbResults.length+'条）\n\n';
+        kbResults.slice(0,3).forEach(function(r,i){
+          ans+='#### '+(i+1)+'. '+r.item.q+'\n\n'+r.item.a.substring(0,600)+'\n\n> 来源：'+escHtml(r.item.src||'陈奕蔚论坛')+' | 匹配度：'+Math.round(Math.min(r.score/60,1)*100)+'%\n\n---\n\n';
+        });
+        ans+='> 💡 配置API Key后可获得AI智能回答（追问、准则引用、实务建议）。\n';
+        document.getElementById('answer-kb').innerHTML=renderMd(ans);
+      } else {
+        document.getElementById('answer-kb').innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div>未找到相关知识条目</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">请尝试其他关键词，或配置API Key获取AI回答</div></div>';
+      }
+    }
     show('result-kb');
   }catch(err){showE('error-kb',err.message);}
   finally{btn.disabled=false;hide('loading-kb');}
@@ -836,33 +850,109 @@ function renderKBSources(results){
 
 // ── Interview ─────────────────────────────────────────
 var ivMessages=[];
+var IND_RISKS={
+  '医疗器械':['两票制合规性','经销商穿透核查','研发费用资本化','注册证/许可资质','集采影响评估'],
+  '半导体/芯片':['技术路线风险','大客户依赖','供应链安全','研发投入资本化','人才流失风险'],
+  '软件开发':['收入确认方法','客户验收标准','研发资本化边界','人员成本构成','SaaS续费率'],
+  '高端制造':['产能利用率','固定资产减值','核心技术依赖','客户集中度','毛利率波动'],
+  '新能源':['补贴退坡影响','产能过剩风险','技术迭代速度','应收账款周转','政府关系依赖'],
+  '生物医药':['在研管线估值','临床试验进展','专利到期风险','销售费用合规','CRO/CDMO依赖'],
+  '消费/零售':['渠道依赖度','库存周转','品牌价值','加盟商管理','线上/线下冲突'],
+  '金融服务':['不良率趋势','资本充足率','关联交易','监管合规','流动性风险'],
+  '其他':['商业模式可持续性','核心竞争力','关联交易','资金占用','持续经营能力']
+};
+
+function genInterviewOutline(company,industry,purpose,extra){
+  var risks=IND_RISKS[industry]||IND_RISKS['其他'];
+  var lines=[];
+  lines.push('# '+company+' \u2014 \u5C3D\u8C03\u8BBF\u8C08\u63D0\u7EB2');
+  lines.push('');
+  lines.push('**行业**：'+industry+' | **目的**：'+purpose);
+  lines.push('');
+  lines.push('## 一、管理层访谈');
+  lines.push('');
+  lines.push('1. 请介绍公司的发展历程、核心竞争力和未来3-5年战略规划');
+  lines.push('2. 所处行业的市场格局？主要竞争对手及差异化优势？');
+  lines.push('3. 近三年收入增长的主要驱动因素？未来增长预期及依据？');
+  lines.push('4. 公司治理结构？董事会构成及重大事项决策机制？');
+  lines.push('');
+  lines.push('## 二、业务负责人访谈');
+  lines.push('');
+  lines.push('1. 主要产品/服务及收入占比？定价策略及与竞争对手差异？');
+  lines.push('2. 前五大客户及供应商情况？是否存在单一重大依赖？');
+  lines.push('3. 销售模式（直销/经销/代理）及各模式毛利率差异？');
+  lines.push('4. 在手订单及未来12个月可预见收入？');
+  lines.push('');
+  lines.push('## 三、财务负责人访谈');
+  lines.push('');
+  lines.push('1. 收入确认政策？是否存在可变对价、应付客户对价等特殊安排？');
+  lines.push('2. 应收账款账龄结构？主要逾期客户及原因？坏账计提政策？');
+  lines.push('3. 存货构成及库龄？是否存在滞销、呆滞品？跌价准备依据？');
+  lines.push('4. 关联交易定价原则？是否存在资金占用或非经营性资金往来？');
+  lines.push('5. 研发支出资本化政策？资本化条件是否充分满足？');
+  lines.push('');
+  lines.push('## 四、技术/研发负责人访谈');
+  lines.push('');
+  lines.push('1. 核心技术来源（自主研发/外购/授权）？知识产权是否独立完整？');
+  lines.push('2. 研发团队规模、核心人员背景及稳定性？');
+  lines.push('3. 在研项目进展及预计商业化时间？研发失败风险预案？');
+  lines.push('');
+  lines.push('## 五、重点关注事项');
+  lines.push('');
+  for(var j=0;j<risks.length;j++)lines.push((j+1)+'. **'+risks[j]+'**：建议获取相关支撑材料并交叉验证');
+  lines.push('');
+  lines.push('## 六、建议追问方向');
+  lines.push('');
+  lines.push('- 如毛利率显著高于同行 \u2192 追问成本构成、定价能力、规模效应');
+  lines.push('- 如应收账款增速远超收入增速 \u2192 追问信用政策变化、客户质量');
+  lines.push('- 如研发投入持续增长但无产出 \u2192 追问研发进度、技术可行性');
+  lines.push('- 如关联交易金额较大 \u2192 追问交易必要性、定价公允性');
+  lines.push('');
+  lines.push('## 七、风险提示');
+  lines.push('');
+  lines.push('> 基于\u300C'+industry+'\u300D行业特征和\u300C'+purpose+'\u300D场景，重点关注：');
+  for(var j=0;j<Math.min(risks.length,3);j++)lines.push('> \u26A0 '+risks[j]);
+  if(!hasAPI())lines.push('\n> \uD83D\uDCA1 配置API Key后可获得AI定制化的行业专项访谈提纲及风险洞察。');
+  if(extra)lines.push('\n> \uD83D\uDCCC 补充关注：'+extra);
+  return lines.join('\n');
+}
+
 async function doInterview(){
   var company=document.getElementById('iv-company').value.trim();
   var industry=document.getElementById('iv-industry').value;
   var purpose=document.getElementById('iv-purpose').value;
   var extra=document.getElementById('iv-extra').value.trim();
   if(!company||!industry||!purpose){showE('error-iv','请填写企业名称、行业和尽调目的');return;}
-  if(!LLM_KEY){showE('error-iv','请先在设置中配置 API Key');return;}
   var btn=document.getElementById('btn-iv');
   btn.disabled=true;
   show('loading-iv');hide('result-iv');hide('error-iv');
   ivMessages=[];
-  var sys="你是一名资深财务尽调顾问。根据用户提供的企业信息，生成专业的尽调访谈提纲。\n\n输出要求：\n1. 访谈提纲（按管理层/财务/业务/技术分模块，每模块3-5个核心问题）\n2. 重点关注事项（列出5-8个需要特别关注的领域）\n3. 建议追问问题（针对可能的风险信号，准备追问方向）\n4. 风险提示（基于行业特征提示潜在风险点）\n\n用 Markdown 格式输出，结构清晰。";
-  var userMsg="企业名称："+company+"\n行业："+industry+"\n尽调目的："+purpose+(extra?"\n补充说明："+extra:"");
-  ivMessages=[{role:"system",content:sys},{role:"user",content:userMsg}];
-  try{
-    var answer=await callLLM(ivMessages,0.4,4096);
-    ivMessages.push({role:"assistant",content:answer});
-    document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(answer)+'</div></div>';
-    show('result-iv');
-  }catch(err){showE('error-iv',err.message);}
-  finally{btn.disabled=false;hide('loading-iv');}
+  if(hasAPI()){
+    var sys="你是一名资深财务尽调顾问。根据用户提供的企业信息，生成专业的尽调访谈提纲。\n\n输出要求：\n1. 访谈提纲（按管理层/财务/业务/技术分模块，每模块3-5个核心问题）\n2. 重点关注事项（列出5-8个需要特别关注的领域）\n3. 建议追问问题（针对可能的风险信号，准备追问方向）\n4. 风险提示（基于行业特征提示潜在风险点）\n\n用 Markdown 格式输出，结构清晰。";
+    var userMsg="企业名称："+company+"\n行业："+industry+"\n尽调目的："+purpose+(extra?"\n补充说明："+extra:"");
+    ivMessages=[{role:"system",content:sys},{role:"user",content:userMsg}];
+    try{
+      var answer=await callLLM(ivMessages,0.4,4096);
+      ivMessages.push({role:"assistant",content:answer});
+      document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(answer)+'</div></div>';
+      show('result-iv');
+    }catch(err){showE('error-iv',err.message);}
+    finally{btn.disabled=false;hide('loading-iv');}
+  } else {
+    setTimeout(function(){
+      var outline=genInterviewOutline(company,industry,purpose,extra);
+      document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(outline)+'</div></div>';
+      show('result-iv');
+      btn.disabled=false;hide('loading-iv');
+    },500);
+  }
 }
 
 async function doIVFollowup(){
   var q=document.getElementById('iv-followup').value.trim();
   if(!q)return;
   if(!ivMessages.length){showE('error-iv','请先生成访谈提纲');return;}
+  if(!hasAPI()){showE('error-iv','追问功能需要配置 API Key，当前为Demo模式');return;}
   document.getElementById('iv-followup').value='';
   var chat=document.getElementById('chat-iv');
   chat.innerHTML+='<div class="chat-msg user">'+escHtml(q)+'</div>';
@@ -876,25 +966,192 @@ async function doIVFollowup(){
 }
 
 // ── Financial Analysis ────────────────────────────────
+(function initDemo(){
+  var di=[
+    '【模拟数据 - 可直接修改后分析】',
+    '营业收入,2023,2024,2025','营业收入,1836.42,1821.54,3185.66',
+    '营业成本,447.81,795.70,1298.30','销售费用,239.34,564.32,1028.11',
+    '管理费用,1262.22,881.24,1082.57','研发费用,0,1065.89,1714.86',
+    '财务费用,0.39,16.66,41.93','其他收益,7.70,211.31,50.71',
+    '投资收益,2.02,2.39,4.31','营业外收入,3.00,0.00,12.00',
+    '营业外支出,0.10,20.09,1.55','净利润,-822.32,-2519.40,-1701.58'
+  ];
+  var db=[
+    '【模拟数据 - 可直接修改后分析】',
+    '资产负债表项目,2023.12.31,2024.12.31,2025.12.31',
+    '货币资金,173.42,1063.75,956.55','应收账款,1074.80,462.14,1510.28',
+    '预付账款,214.68,452.71,406.41','其他应收款,153.56,151.01,1245.56',
+    '存货,630.37,702.49,868.99','固定资产,96.32,99.05,486.40',
+    '长期待摊费用,125.61,188.58,532.00','递延所得税资产,88.40,287.63,1018.40',
+    '短期借款,890.00,890.00,1633.23','应付账款,120.44,14.82,269.68',
+    '预收款项,211.91,136.06,411.91','应付职工薪酬,104.30,92.56,101.24',
+    '实收资本,226.20,436.52,604.35','资本公积,2574.40,4690.49,8522.66',
+    '未分配利润,-821.23,-2666.30,-4661.59'
+  ];
+  var fi=document.getElementById('fa-income');
+  var fb=document.getElementById('fa-balance');
+  if(fi&&!fi.value)fi.value=di.join('\n');
+  if(fb&&!fb.value)fb.value=db.join('\n');
+})();
+
+function parseTable(text){
+  var lines=text.trim().split('\n').filter(function(l){return l.trim()&&l.indexOf('【')!==0;});
+  var result={};
+  lines.forEach(function(line){
+    var parts=line.split(',').map(function(p){return p.trim();});
+    if(parts.length<2)return;
+    var name=parts[0];
+    if(!name)return;
+    result[name]=parts.slice(1).map(function(v){var n=parseFloat(v.replace(/,/g,''));return isNaN(n)?0:n;});
+  });
+  return result;
+}
+
+function genFinanceAnalysis(income,balance){
+  var inc=parseTable(income);
+  var bal=parseTable(balance);
+  var lines=[];
+  lines.push('# 财务分析报告');
+  if(!hasAPI())lines.push('\n> 💡 当前为Demo模式（基于输入数据自动计算指标）。配置API Key后可获得AI深度分析。\n');
+  var rev=inc['营业收入'];
+  if(rev&&rev.length>=2){
+    lines.push('## 一、营业收入分析\n');
+    lines.push('| 指标 | '+' | '.join(rev.map(function(_,i){return '期间'+(i+1);}))+' |');
+    lines.push('|------|'+rev.map(function(){return'---'}).join('|')+'|');
+    lines.push('| 收入(万元) | '+rev.map(function(v){return v.toFixed(2);}).join(' | ')+' |');
+    var growth=rev[rev.length-1]&&rev[rev.length-2]?((rev[rev.length-1]-rev[rev.length-2])/Math.abs(rev[rev.length-2]||1)*100).toFixed(1):'-';
+    lines.push('\n最近一期收入变动：**'+growth+'%**');
+    lines.push('\n**建议关注**：收入增长的可持续性、季节性特征及与行业趋势的匹配度。');
+  }
+  var cost=inc['营业成本'];
+  if(rev&&cost){
+    lines.push('\n## 二、毛利率分析\n');
+    lines.push('| 期间 | 收入(万元) | 成本(万元) | 毛利率 |');
+    lines.push('|------|-----------|-----------|--------|');
+    var len=Math.min(rev.length,cost.length);
+    for(var i=0;i<len;i++){
+      var gm=rev[i]?((rev[i]-cost[i])/rev[i]*100).toFixed(1):'0.0';
+      lines.push('| 期间'+(i+1)+' | '+rev[i].toFixed(2)+' | '+cost[i].toFixed(2)+' | '+gm+'% |');
+    }
+    lines.push('\n**建议关注**：毛利率变动趋势及合理性，与同行业可比公司的差异分析。');
+  }
+  var ar=bal['应收账款'];
+  if(ar&&rev){
+    lines.push('\n## 三、应收账款分析\n');
+    lines.push('| 期间 | 应收账款(万元) | 占收入比 |');
+    lines.push('|------|---------------|----------|');
+    var len2=Math.min(ar.length,rev.length);
+    for(var i=0;i<len2;i++){
+      var ratio=rev[i]?(ar[i]/rev[i]*100).toFixed(1):'-';
+      lines.push('| 期间'+(i+1)+' | '+ar[i].toFixed(2)+' | '+ratio+'% |');
+    }
+    lines.push('\n**建议关注**：应收增速与收入增速的匹配性、账龄结构、逾期情况及坏账准备充分性。');
+  }
+  var inv=bal['存货'];
+  if(inv&&cost){
+    lines.push('\n## 四、存货分析\n');
+    lines.push('| 期间 | 存货(万元) | 周转天数(估) |');
+    lines.push('|------|-----------|-------------|');
+    var len3=Math.min(inv.length,cost.length);
+    for(var i=0;i<len3;i++){
+      var days=cost[i]?(inv[i]/cost[i]*365).toFixed(0):'-';
+      lines.push('| 期间'+(i+1)+' | '+inv[i].toFixed(2)+' | '+days+'天 |');
+    }
+    lines.push('\n**建议关注**：存货库龄结构、呆滞品占比及跌价准备计提充分性。');
+  }
+  var rd=inc['研发费用'];
+  if(rd){
+    lines.push('\n## 五、研发投入分析\n');
+    lines.push('| 期间 | 研发费用(万元) | 占收入比 |');
+    lines.push('|------|---------------|----------|');
+    for(var i=0;i<rd.length;i++){
+      var rdRatio=rev&&rev[i]?(rd[i]/rev[i]*100).toFixed(1):'-';
+      lines.push('| 期间'+(i+1)+' | '+rd[i].toFixed(2)+' | '+rdRatio+'% |');
+    }
+    lines.push('\n**建议关注**：研发投入资本化政策合理性及研发产出匹配性。');
+  }
+  lines.push('\n## 六、关键资产负债项目\n');
+  ['货币资金','固定资产','短期借款','应付账款','实收资本','未分配利润'].forEach(function(item){
+    if(bal[item]&&bal[item].length>0){
+      var bv=bal[item],latest=bv[bv.length-1];
+      var info='- **'+item+'**：'+latest.toFixed(2)+'万元';
+      if(bv.length>=2&&Math.abs(bv[bv.length-2])>0.01){
+        info+='（较上期'+((latest-bv[bv.length-2])/Math.abs(bv[bv.length-2])*100).toFixed(1)+'%）';
+      }
+      lines.push(info);
+    }
+  });
+  var selling=inc['销售费用'],admin=inc['管理费用'],rd2=inc['研发费用'];
+  if(rev&&(selling||admin||rd2)){
+    lines.push('\n## 七、期间费用结构\n');
+    lines.push('| 期间 | 销售费用 | 管理费用 | 研发费用 | 合计占收入比 |');
+    lines.push('|------|---------|---------|---------|-------------|');
+    for(var i=0;i<rev.length;i++){
+      var s=selling&&selling[i]||0,a=admin&&admin[i]||0,r=rd2&&rd2[i]||0;
+      var total=s+a+r;
+      lines.push('| 期间'+(i+1)+' | '+s.toFixed(2)+' | '+a.toFixed(2)+' | '+r.toFixed(2)+' | '+(rev[i]?(total/rev[i]*100).toFixed(1):'-')+'% |');
+    }
+  }
+  lines.push('\n## 八、整体关注事项\n');
+  lines.push('1. 收入增长的可持续性及驱动因素分析');
+  lines.push('2. 毛利率波动的合理性及与行业趋势对比');
+  lines.push('3. 应收账款回款情况及信用风险管理');
+  lines.push('4. 存货周转效率及减值风险评估');
+  lines.push('5. 资产负债结构合理性及偿债能力分析');
+  if(!hasAPI())lines.push('\n> ⚠ 以上分析为Demo模式自动计算生成。实际尽调应获取完整审计报告并做深入分析。');
+  lines.push('> 📌 事务所提示：本分析不构成最终结论，建议继续关注上述事项并获取进一步审计证据。');
+  return lines.join('\n');
+}
+
 async function doFinance(){
   var income=document.getElementById('fa-income').value.trim();
   var balance=document.getElementById('fa-balance').value.trim();
   if(!income&&!balance){showE('error-fa','请至少输入利润表或资产负债表数据');return;}
-  if(!LLM_KEY){showE('error-fa','请先在设置中配置 API Key');return;}
   var btn=document.getElementById('btn-fa');
   btn.disabled=true;
   show('loading-fa');hide('result-fa');hide('error-fa');
-  var sys="你是一名财务分析师，正在为财务尽调项目分析目标公司财务数据。\n\n输出要求：\n1. 毛利率分析（趋势+变动原因）\n2. 应收账款分析（周转+账龄推测+集中度）\n3. 存货分析（周转+减值风险）\n4. 现金流分析（经营/投资/筹资）\n5. 波动说明（重大变动项的解释）\n\n重要：不要输出结论性判断，而是用「建议继续关注」的表述方式，符合事务所表达习惯。\n用 Markdown 格式输出。";
-  var userMsg="以下是目标公司的财务数据（单位：万元）：\n\n## 利润表\n"+(income||"未提供")+"\n\n## 资产负债表\n"+(balance||"未提供");
-  try{
-    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
-    document.getElementById('answer-fa').innerHTML=renderMd(answer);
-    show('result-fa');
-  }catch(err){showE('error-fa',err.message);}
-  finally{btn.disabled=false;hide('loading-fa');}
+  if(hasAPI()){
+    var sys="你是一名财务分析师，正在为财务尽调项目分析目标公司财务数据。\n\n输出要求：\n1. 毛利率分析（趋势+变动原因）\n2. 应收账款分析（周转+账龄推测+集中度）\n3. 存货分析（周转+减值风险）\n4. 现金流分析（经营/投资/筹资）\n5. 波动说明（重大变动项的解释）\n\n重要：不要输出结论性判断，而是用「建议继续关注」的表述方式，符合事务所表达习惯。\n用 Markdown 格式输出。";
+    var userMsg="以下是目标公司的财务数据（单位：万元）：\n\n## 利润表\n"+(income||"未提供")+"\n\n## 资产负债表\n"+(balance||"未提供");
+    try{
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
+      document.getElementById('answer-fa').innerHTML=renderMd(answer);
+      show('result-fa');
+    }catch(err){showE('error-fa',err.message);}
+    finally{btn.disabled=false;hide('loading-fa');}
+  } else {
+    setTimeout(function(){
+      var analysis=genFinanceAnalysis(income,balance);
+      document.getElementById('answer-fa').innerHTML=renderMd(analysis);
+      show('result-fa');
+      btn.disabled=false;hide('loading-fa');
+    },400);
+  }
 }
 
 // ── Risk Radar ────────────────────────────────────────
+function genRiskAssessment(company,industry,revenue,emp,kw){
+  var rev=parseFloat(revenue)||0,emps=parseInt(emp)||0;
+  var dims=[
+    {name:'收入确认',level:'medium',desc:'需关注收入确认时点及政策是否符合准则。'+(rev>0&&rev<3000?' 规模较小，收入确认方式对报表影响显著。':'')},
+    {name:'客户集中',level:'medium',desc:'建议核查前五大客户占比及是否存在单一重大依赖。'+(emps<50?' 小型企业通常客户集中度较高。':'')},
+    {name:'持续经营',level:rev>0&&rev<1000?'high':'low',desc:rev>0&&rev<1000?'营收规模较小，需关注持续经营能力及融资渠道。':'基于当前信息暂无明显持续经营疑虑，建议获取未来12个月现金流预测。'},
+    {name:'关联交易',level:'medium',desc:'建议核查关联方清单完整性及关联交易定价公允性。'+(kw&&kw.indexOf('关联')!==-1?' 用户已标注关联交易风险。':'')},
+    {name:'资金占用',level:'low',desc:'建议核查其他应收款明细，识别是否存在非经营性资金往来。'}
+  ];
+  if(kw){var kl=kw.toLowerCase();
+    if(kl.indexOf('客户集中')!==-1||kl.indexOf('依赖')!==-1)dims[1].level='high';
+    if(kl.indexOf('对赌')!==-1)dims[2].level='high';
+    if(kl.indexOf('关联')!==-1)dims[3].level='high';
+    if(kl.indexOf('资金')!==-1||kl.indexOf('占用')!==-1)dims[4].level='high';
+  }
+  var levels={high:3,medium:2,low:1},totalScore=0;
+  dims.forEach(function(d){totalScore+=levels[d.level]||2;});
+  var avgScore=totalScore/dims.length;
+  var rating=avgScore>=2.5?4:avgScore>=2?3:avgScore>=1.5?2:1;
+  return {rating:rating,dims:dims};
+}
+
 async function doRisk(){
   var company=document.getElementById('rk-company').value.trim();
   var industry=document.getElementById('rk-industry').value.trim();
@@ -902,53 +1159,99 @@ async function doRisk(){
   var emp=document.getElementById('rk-employees').value.trim();
   var kw=document.getElementById('rk-keywords').value.trim();
   if(!company){showE('error-rk','请填写企业名称');return;}
-  if(!LLM_KEY){showE('error-rk','请先在设置中配置 API Key');return;}
   var btn=document.getElementById('btn-rk');
   btn.disabled=true;
   show('loading-rk');hide('result-rk');hide('error-rk');
-  var sys="你是一名财务尽调风险分析师。根据企业基本情况，输出五维度风险评估。\n\n输出格式要求（严格遵守）：\n第一行输出总体风险等级（1-5），格式：RATING:数字\n\n然后输出五个维度的评估，每个维度格式：\nDIM:维度名称|等级(high/medium/low)|简述\n\n五个维度：\n1. 收入确认\n2. 客户集中\n3. 持续经营\n4. 关联交易\n5. 资金占用\n\n最后用 Markdown 输出详细分析。";
-  var userMsg="企业名称："+company+"\n行业："+(industry||"未提供")+"\n营收规模："+(revenue||"未提供")+"万元\n员工人数："+(emp||"未提供")+"\n关键风险词："+(kw||"无");
-  try{
-    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
-    // Parse rating
-    var ratingMatch=answer.match(/RATING:\s*(\d)/);
-    var rating=ratingMatch?parseInt(ratingMatch[1]):3;
-    var stars='★★★★★'.substring(0,rating)+'☆☆☆☆☆'.substring(0,5-rating);
-    var levelClass=rating>=4?'risk-high':rating>=3?'risk-medium':'risk-low';
-    var levelText=rating>=4?'高风险':rating>=3?'中风险':'低风险';
-    document.getElementById('risk-rating').innerHTML='<span class="risk-stars">'+stars+'</span><span class="risk-level '+levelClass+'">'+levelText+'</span>';
-    // Parse dimensions
-    var dims=[];
-    var dimMatches=answer.match(/DIM:[^|]+\|[^|]+\|[^\n]+/g);
-    if(dimMatches){
-      dimMatches.forEach(function(m){
-        var parts=m.replace('DIM:','').split('|');
-        if(parts.length>=3)dims.push({name:parts[0].trim(),level:parts[1].trim(),desc:parts[2].trim()});
+  if(hasAPI()){
+    var sys="你是一名财务尽调风险分析师。根据企业基本情况，输出五维度风险评估。\n\n输出格式要求（严格遵守）：\n第一行输出总体风险等级（1-5），格式：RATING:数字\n\n然后输出五个维度的评估，每个维度格式：\nDIM:维度名称|等级(high/medium/low)|简述\n\n五个维度：\n1. 收入确认\n2. 客户集中\n3. 持续经营\n4. 关联交易\n5. 资金占用\n\n最后用 Markdown 输出详细分析。";
+    var userMsg="企业名称："+company+"\n行业："+(industry||"未提供")+"\n营收规模："+(revenue||"未提供")+"万元\n员工人数："+(emp||"未提供")+"\n关键风险词："+(kw||"无");
+    try{
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,4096);
+      var ratingMatch=answer.match(/RATING:\s*(\d)/);
+      var rating=ratingMatch?parseInt(ratingMatch[1]):3;
+      var stars='★★★★★'.substring(0,rating)+'☆☆☆☆☆'.substring(0,5-rating);
+      var levelClass=rating>=4?'risk-high':rating>=3?'risk-medium':'risk-low';
+      var levelText=rating>=4?'高风险':rating>=3?'中风险':'低风险';
+      document.getElementById('risk-rating').innerHTML='<span class="risk-stars">'+stars+'</span><span class="risk-level '+levelClass+'">'+levelText+'</span>';
+      var dims=[];
+      var dimMatches=answer.match(/DIM:[^|]+\|[^|]+\|[^\n]+/g);
+      if(dimMatches){
+        dimMatches.forEach(function(m){
+          var parts=m.replace('DIM:','').split('|');
+          if(parts.length>=3)dims.push({name:parts[0].trim(),level:parts[1].trim(),desc:parts[2].trim()});
+        });
+      }
+      if(dims.length<5){
+        var names=["收入确认","客户集中","持续经营","关联交易","资金占用"];
+        dims=names.map(function(n){return{name:n,level:'medium',desc:'详见下方分析'};});
+      }
+      var colors={high:'var(--red)',medium:'var(--yellow)',low:'var(--green)'};
+      var h='';
+      dims.forEach(function(d){
+        var c=colors[d.level]||colors.medium;
+        h+='<div class="risk-card"><div class="risk-card-title">'+escHtml(d.name)+'<span class="risk-dot" style="background:'+c+'"></span></div><div class="risk-card-desc">'+escHtml(d.desc)+'</div></div>';
       });
-    }
-    // Default dims if not parsed
-    if(dims.length<5){
-      var names=["收入确认","客户集中","持续经营","关联交易","资金占用"];
-      dims=names.map(function(n){return{name:n,level:'medium',desc:'详见下方分析'};});
-    }
-    var colors={high:'var(--red)',medium:'var(--yellow)',low:'var(--green)'};
-    var h='';
-    dims.forEach(function(d){
-      var c=colors[d.level]||colors.medium;
-      h+='<div class="risk-card"><div class="risk-card-title">'+escHtml(d.name)+'<span class="risk-dot" style="background:'+c+'"></span></div><div class="risk-card-desc">'+escHtml(d.desc)+'</div></div>';
-    });
-    document.getElementById('risk-grid').innerHTML=h;
-    // Remove parsed lines from answer
-    var cleanAnswer=answer.replace(/RATING:\s*\d+/,'').replace(/DIM:[^|]+\|[^|]+\|[^\n]+/g,'').trim();
-    document.getElementById('answer-rk').innerHTML=renderMd(cleanAnswer);
-    show('result-rk');
-  }catch(err){showE('error-rk',err.message);}
-  finally{btn.disabled=false;hide('loading-rk');}
+      document.getElementById('risk-grid').innerHTML=h;
+      var cleanAnswer=answer.replace(/RATING:\s*\d+/,'').replace(/DIM:[^|]+\|[^|]+\|[^\n]+/g,'').trim();
+      document.getElementById('answer-rk').innerHTML=renderMd(cleanAnswer);
+      show('result-rk');
+    }catch(err){showE('error-rk',err.message);}
+    finally{btn.disabled=false;hide('loading-rk');}
+  } else {
+    setTimeout(function(){
+      var result=genRiskAssessment(company,industry,revenue,emp,kw);
+      var rating=result.rating;
+      var stars='★★★★★'.substring(0,rating)+'☆☆☆☆☆'.substring(0,5-rating);
+      var levelClass=rating>=4?'risk-high':rating>=3?'risk-medium':'risk-low';
+      var levelText=rating>=4?'高风险':rating>=3?'中风险':'低风险';
+      document.getElementById('risk-rating').innerHTML='<span class="risk-stars">'+stars+'</span><span class="risk-level '+levelClass+'">'+levelText+'</span>';
+      var colors={high:'var(--red)',medium:'var(--yellow)',low:'var(--green)'};
+      var h='';
+      result.dims.forEach(function(d){
+        var c=colors[d.level]||colors.medium;
+        h+='<div class="risk-card"><div class="risk-card-title">'+escHtml(d.name)+'<span class="risk-dot" style="background:'+c+'"></span></div><div class="risk-card-desc">'+escHtml(d.desc)+'</div></div>';
+      });
+      document.getElementById('risk-grid').innerHTML=h;
+      var dl=[];
+      dl.push('## 风险评估详情 — '+escHtml(company));
+      if(!hasAPI())dl.push('\n> 💡 当前为Demo模式（基于规则评分）。配置API Key后可获得AI深度风险分析。\n');
+      dl.push('**行业**：'+(industry||'未提供')+' | **营收规模**：'+(revenue||'未提供')+'万元 | **员工**：'+(emp||'未提供')+'人');
+      if(kw)dl.push('\n**用户标注风险点**：'+kw);
+      dl.push('\n### 各维度分析');
+      result.dims.forEach(function(d){
+        dl.push('\n#### '+d.name+'（'+{'high':'🔴 高风险','medium':'🟡 中风险','low':'🟢 低风险'}[d.level]+'）');
+        dl.push(d.desc);
+      });
+      dl.push('\n### 整体建议');
+      dl.push('1. 建议获取标的公司最近三年审计报告及最新一期财务报表');
+      dl.push('2. 对高风险维度进行专项核查，获取充分适当的审计证据');
+      dl.push('3. 结合行业基准数据，评估各项指标是否处于合理区间');
+      dl.push('\n> 📌 以上评估基于有限信息生成，实际尽调风险等级以现场工作结果为准。');
+      document.getElementById('answer-rk').innerHTML=renderMd(dl.join('\n'));
+      show('result-rk');
+      btn.disabled=false;hide('loading-rk');
+    },500);
+  }
 }
 
-// ── Working Paper ─────────────────────────────────────
+// ── Working Paper (v2: real Excel processing) ─────────
 var wpFiles=[];
-var wpTimer=null;
+var SUBJ_MAP={
+  '货币资金':{codes:['1002'],type:'balance'},'应收账款':{codes:['1122'],type:'balance'},
+  '预付账款':{codes:['1123'],type:'balance'},'其他应收款':{codes:['1221'],type:'balance'},
+  '存货':{codes:['1403','1405','5001'],type:'balance'},'固定资产':{codes:['1601','1602'],type:'balance'},
+  '长期待摊费用':{codes:['1801'],type:'balance'},'递延所得税资产':{codes:['1811'],type:'balance'},
+  '短期借款':{codes:['2001'],type:'balance'},'应付账款':{codes:['2202'],type:'balance'},
+  '预收款项':{codes:['2203'],type:'balance'},'应付职工薪酬':{codes:['2211'],type:'balance'},
+  '应交税费':{codes:['2221'],type:'balance'},'其他应付款':{codes:['2241'],type:'balance'},
+  '实收资本':{codes:['4001'],type:'balance'},'资本公积':{codes:['4002'],type:'balance'},
+  '未分配利润':{codes:['4104'],type:'balance'},'营业收入':{codes:['6001'],type:'income'},
+  '营业成本':{codes:['6401'],type:'income'},'销售费用':{codes:['6601'],type:'income'},
+  '管理费用':{codes:['6602'],type:'income'},'研发费用':{codes:['6602'],type:'income'},
+  '财务费用':{codes:['6603'],type:'income'}
+};
+var DEBIT_CODES=['1002','1101','1122','1123','1221','1403','1405','5001','1601','1604','1701','1801','1811','6401','6403','6601','6602','6603','6801'];
+
 function onWPUpload(input){
   wpFiles=Array.from(input.files);
   var list=document.getElementById('wp-file-list');
@@ -961,76 +1264,218 @@ function onWPUpload(input){
   list.innerHTML=h;
 }
 
-function startWP(){
-  if(wpFiles.length===0)return;
+function parseBS(data){
+  var rows=[],currentCode='',currentName='';
+  for(var r=3;r<data.length;r++){
+    var row=data[r]||[];
+    var code=String(row[0]||'').trim(),name=String(row[1]||'').trim();
+    var auxC=String(row[2]||'').trim(),auxN=String(row[3]||'').trim();
+    if(!code&&!name&&!auxC&&!auxN)continue;
+    if(/合计|总计|小计/.test(name)&&!code)continue;
+    var isTop=false;
+    if(code&&code!=='None'&&code!=='-'){currentCode=code;currentName=name;isTop=true;}
+    var nv=[];
+    for(var c=4;c<row.length;c++){var v=row[c];if(v===null||v===undefined||v===''||v==='-')nv.push(0);else{var fv=parseFloat(v);nv.push(isNaN(fv)?0:fv);}}
+    while(nv.length<8)nv.push(0);
+    rows.push({code:currentCode,name:currentName,auxCode:auxC,auxName:auxN,isTop:isTop,openDr:nv[0],openCr:nv[1],curDr:nv[2],curCr:nv[3],ytdDr:nv[4],ytdCr:nv[5],endDr:nv[6],endCr:nv[7]});
+  }
+  return rows;
+}
+
+function getNet(item,isBal){
+  var tc=item.code.split('.')[0],isDr=DEBIT_CODES.indexOf(tc)!==-1;
+  return isBal?(isDr?item.endDr-item.endCr:item.endCr-item.endDr):(isDr?item.ytdDr-item.ytdCr:item.ytdCr-item.ytdDr);
+}
+
+async function loadAllFiles(){
+  var ad={};
+  for(var i=0;i<wpFiles.length;i++){
+    var f=wpFiles[i],buf=await f.arrayBuffer();
+    var wb=XLSX.read(buf,{type:'array'});
+    var sh=wb.Sheets[wb.SheetNames[0]];
+    var json=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+    ad[f.name]=parseBS(json);
+  }
+  return ad;
+}
+
+function processSubject(name,cfg,allData){
+  var codes=cfg.codes,isBal=cfg.type==='balance',combined=[];
+  Object.keys(allData).forEach(function(fn){
+    var rows=allData[fn],items=[],fileTotal=0;
+    rows.forEach(function(row){
+      var tc=row.code.split('.')[0];
+      if(codes.indexOf(tc)===-1)return;
+      var net=getNet(row,isBal);
+      items.push({row:row,net:net});
+      if(row.isTop&&codes.indexOf(tc)!==-1){
+        if(tc==='1602')fileTotal-=net;else fileTotal+=net;
+      }
+    });
+    if(items.length>0||Math.abs(fileTotal)>0.01)combined.push({file:fn,items:items,total:fileTotal});
+  });
+  return {subject:name,isBal:isBal,combined:combined};
+}
+
+async function startWP(){
+  if(wpFiles.length===0){document.getElementById('wp-upload-zone').style.borderColor='var(--red)';setTimeout(function(){document.getElementById('wp-upload-zone').style.borderColor='';},1500);return;}
   document.getElementById('wp-s1').classList.add('done');
   document.getElementById('wp-s2').classList.add('active');
   document.getElementById('wp-process-area').style.display='block';
+  document.getElementById('wp-done-area').style.display='none';
   document.getElementById('wp-status').textContent='正在解析余额表...';
-  var progress=0;
-  wpTimer=setInterval(function(){
-    progress+=Math.random()*15+5;
-    if(progress>=100){
-      progress=100;
-      clearInterval(wpTimer);
-      document.getElementById('wp-bar').style.width='100%';
-      document.getElementById('wp-status').textContent='处理完成！';
-      document.getElementById('wp-s2').classList.remove('active');
-      document.getElementById('wp-s2').classList.add('done');
-      document.getElementById('wp-s3').classList.add('done');
-      document.getElementById('wp-s4').classList.add('done');
-      setTimeout(function(){
-        document.getElementById('wp-process-area').style.display='none';
-        document.getElementById('wp-done-area').style.display='block';
-        var sheets=Math.floor(Math.random()*8)+15;
-        document.getElementById('wp-summary').textContent='共生成 '+sheets+' 个科目底稿 Sheet · 涵盖资产负债表及利润表科目';
-      },500);
+  document.getElementById('wp-bar').style.width='5%';
+  try{
+    var allData=await loadAllFiles();
+    document.getElementById('wp-bar').style.width='25%';
+    document.getElementById('wp-status').textContent='已解析 '+Object.keys(allData).length+' 个文件，匹配科目中...';
+    var results=[],subjNames=Object.keys(SUBJ_MAP);
+    for(var i=0;i<subjNames.length;i++){
+      var nm=subjNames[i],cfg=SUBJ_MAP[nm];
+      var r=processSubject(nm,cfg,allData);
+      if(r.combined.length>0)results.push(r);
+      document.getElementById('wp-bar').style.width=(25+Math.floor((i+1)/subjNames.length*45))+'%';
     }
-    document.getElementById('wp-bar').style.width=progress+'%';
-    if(progress<30)document.getElementById('wp-status').textContent='正在解析余额表...';
-    else if(progress<60)document.getElementById('wp-status').textContent='正在匹配科目编码...';
-    else if(progress<85)document.getElementById('wp-status').textContent='正在生成底稿 Sheet...';
-    else document.getElementById('wp-status').textContent='正在格式化输出...';
-  },400);
+    if(results.length===0){
+      document.getElementById('wp-status').textContent='未匹配到科目数据，请检查文件格式。';
+      document.getElementById('wp-s2').classList.remove('active');
+      document.getElementById('wp-s2').style.background='rgba(220,38,38,0.1)';
+      document.getElementById('wp-s2').style.color='var(--red)';
+      return;
+    }
+    document.getElementById('wp-bar').style.width='75%';
+    document.getElementById('wp-status').textContent='正在生成科目底稿 Excel...';
+    var xlWb=XLSX.utils.book_new();
+    var toc=[['序号','科目名称','类型','文件数']];
+    results.forEach(function(r,i){toc.push([i+1,r.subject,r.isBal?'资产负债表':'利润表',r.combined.length]);});
+    var tocWs=XLSX.utils.aoa_to_sheet(toc);
+    tocWs['!cols']=[{wch:8},{wch:22},{wch:14},{wch:10}];
+    XLSX.utils.book_append_sheet(xlWb,tocWs,'目录');
+    results.forEach(function(result){
+      var data=[];
+      data.push([result.subject+' 科目底稿']);data.push([]);
+      data.push(['项目/文件','科目','期末净额']);
+      result.combined.forEach(function(e){
+        var sn=e.file.length>30?e.file.substring(0,27)+'...':e.file;
+        data.push([sn,result.subject,e.total]);
+      });
+      var gt=result.combined.reduce(function(s,e){return s+e.total;},0);
+      data.push(['合计','',gt]);data.push([]);
+      data.push(['文件/来源','科目编码','科目名称','辅助编码','辅助名称','期末借方','期末贷方','期末净额']);
+      result.combined.forEach(function(e){
+        e.items.forEach(function(it){
+          var sn=e.file.length>30?e.file.substring(0,27)+'...':e.file;
+          data.push([sn,it.row.code,it.row.name,it.row.auxCode,it.row.auxName,it.row.endDr,it.row.endCr,it.net]);
+        });
+      });
+      var ws=XLSX.utils.aoa_to_sheet(data);
+      ws['!cols']=[{wch:32},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
+      var sn=result.subject.replace(/[\\\/\*\?\[\]:]/g,'').substring(0,31);
+      XLSX.utils.book_append_sheet(xlWb,ws,sn);
+    });
+    document.getElementById('wp-bar').style.width='95%';
+    document.getElementById('wp-status').textContent='准备下载...';
+    var wbout=XLSX.write(xlWb,{bookType:'xlsx',type:'array'});
+    var blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    window._wpBlob=blob;window._wpSheetCount=results.length;
+    document.getElementById('wp-bar').style.width='100%';
+    document.getElementById('wp-status').textContent='处理完成！';
+    document.getElementById('wp-s2').classList.remove('active');document.getElementById('wp-s2').classList.add('done');
+    document.getElementById('wp-s3').classList.add('done');document.getElementById('wp-s4').classList.add('done');
+    setTimeout(function(){
+      document.getElementById('wp-process-area').style.display='none';
+      document.getElementById('wp-done-area').style.display='block';
+      document.getElementById('wp-summary').textContent='共生成 '+results.length+' 个科目底稿 Sheet · 处理 '+Object.keys(allData).length+' 个余额表文件';
+    },400);
+  }catch(err){
+    document.getElementById('wp-status').textContent='处理出错：'+err.message;
+    document.getElementById('wp-s2').classList.remove('active');
+    document.getElementById('wp-s2').style.background='rgba(220,38,38,0.1)';
+    document.getElementById('wp-s2').style.color='var(--red)';
+    console.error(err);
+  }
 }
 
 function downloadWP(){
-  // Generate a demo Excel file using SheetJS-like approach
-  // Since we don't have SheetJS, create a simple CSV
-  var csv='\ufeff科目底稿目录\n序号,科目名称,类型\n';
-  var subjects=['货币资金','应收账款','预付账款','其他应收款','存货','固定资产','短期借款','应付账款','预收款项','应付职工薪酬','应交税费','其他应付款','实收资本','资本公积','未分配利润','营业收入','营业成本','销售费用','管理费用','研发费用','财务费用'];
-  subjects.forEach(function(s,i){
-    var type=i<15?'资产负债表':'利润表';
-    csv+=(i+1)+','+s+','+type+'\n';
-  });
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='科目底稿_目录.csv';a.click();
-  URL.revokeObjectURL(url);
+  if(window._wpBlob){
+    var url=URL.createObjectURL(window._wpBlob);
+    var a=document.createElement('a');
+    a.href=url;a.download='科目底稿_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.xlsx';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  } else {
+    // Demo: generate sample Excel
+    var wb=XLSX.utils.book_new();
+    var subs=['货币资金','应收账款','预付账款','其他应收款','存货','固定资产','短期借款','应付账款','预收款项','应付职工薪酬','应交税费','其他应付款','实收资本','资本公积','未分配利润','营业收入','营业成本','销售费用','管理费用','研发费用','财务费用'];
+    var toc2=[['序号','科目名称','类型']];
+    subs.forEach(function(s,i){
+      toc2.push([i+1,s,i<15?'资产负债表':'利润表']);
+      var wsData=[[s+' 科目底稿'],[],['项目','科目','2023.12.31','2024.12.31','2025.12.31'],['合并审计报告',s,'-','-','-'],['余额表汇总',s,'-','-','-'],['差额','','-','-','-']];
+      var ws2=XLSX.utils.aoa_to_sheet(wsData);
+      ws2['!cols']=[{wch:16},{wch:20},{wch:16},{wch:16},{wch:16}];
+      XLSX.utils.book_append_sheet(wb,ws2,s.replace(/[\\\/\*\?\[\]:]/g,'').substring(0,31));
+    });
+    var tocWs2=XLSX.utils.aoa_to_sheet(toc2);
+    tocWs2['!cols']=[{wch:8},{wch:22},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,tocWs2,'目录');
+    var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    var blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='科目底稿_Demo模板.xlsx';a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  }
 }
 
 // ── Report Assistant ──────────────────────────────────
 var rpMessages=[];
+function genReportPolish(input){
+  var lines=[];
+  lines.push('## 访谈纪要（优化稿）\n');
+  var paras=input.split(/\n{2,}/).filter(function(p){return p.trim();});
+  paras.forEach(function(p){
+    var c=p.replace(/嗯[啊哦]*/g,'').replace(/那个/g,'').replace(/就是[说]?/g,'').replace(/然后/g,'').replace(/的话/g,'').trim();
+    var qm=c.match(/^[问Q][：:]\s*(.+)/i);
+    var am=c.match(/^[回答A][：:]\s*(.+)/i);
+    if(qm){lines.push('**Q: '+qm[1]+'**\n');}
+    else if(am){lines.push('A: '+am[1]+'\n');}
+    else if(c.length>20){lines.push('- '+c+'\n');}
+  });
+  lines.push('\n### 待核实事项\n');
+  lines.push('1. 上述信息为初步访谈纪要整理，具体数据需获取相关支撑材料验证');
+  lines.push('2. 关键财务数据需与审计报告及原始凭证核对');
+  lines.push('3. 法律事项需由律师出具专业法律意见');
+  if(!hasAPI())lines.push('\n> 💡 当前为Demo模式（基础文本整理）。配置API Key后可获得AI深度润色。');
+  return lines.join('\n');
+}
+
 async function doReport(){
   var input=document.getElementById('rp-input').value.trim();
   if(!input){showE('error-rp','请粘贴原始内容');return;}
-  if(!LLM_KEY){showE('error-rp','请先在设置中配置 API Key');return;}
   var btn=document.getElementById('btn-rp');
   btn.disabled=true;
   show('loading-rp');hide('error-rp');
-  var sys="你是一名会计师事务所的高级审计经理。将用户提供的原始访谈纪要或笔记，优化为事务所风格的正式表达。\n\n要求：\n1. 保持原意不变\n2. 用语专业、简洁、客观\n3. 结构化分点表述\n4. 去除口语化表达和冗余信息\n5. 标注需要进一步核实的事项\n\n用 Markdown 格式输出。";
-  rpMessages=[{role:"system",content:sys},{role:"user",content:input}];
-  try{
-    var answer=await callLLM(rpMessages,0.3,4096);
-    rpMessages.push({role:"assistant",content:answer});
-    document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(answer)+'</div>';
-  }catch(err){showE('error-rp',err.message);}
-  finally{btn.disabled=false;hide('loading-rp');}
+  if(hasAPI()){
+    var sys="你是一名会计师事务所的高级审计经理。将用户提供的原始访谈纪要或笔记，优化为事务所风格的正式表达。\n\n要求：\n1. 保持原意不变\n2. 用语专业、简洁、客观\n3. 结构化分点表述\n4. 去除口语化表达和冗余信息\n5. 标注需要进一步核实的事项\n\n用 Markdown 格式输出。";
+    rpMessages=[{role:"system",content:sys},{role:"user",content:input}];
+    try{
+      var answer=await callLLM(rpMessages,0.3,4096);
+      rpMessages.push({role:"assistant",content:answer});
+      document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(answer)+'</div>';
+    }catch(err){showE('error-rp',err.message);}
+    finally{btn.disabled=false;hide('loading-rp');}
+  } else {
+    setTimeout(function(){
+      var result=genReportPolish(input);
+      document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(result)+'</div>';
+      btn.disabled=false;hide('loading-rp');
+    },300);
+  }
 }
 
 async function doReportPolish(){
   if(!rpMessages.length){showE('error-rp','请先点击「开始优化」');return;}
+  if(!hasAPI()){showE('error-rp','润色功能需要配置 API Key，当前为Demo模式');return;}
   var btn=document.getElementById('btn-rp');
   btn.disabled=true;
   show('loading-rp');hide('error-rp');
