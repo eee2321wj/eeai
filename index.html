@@ -711,7 +711,7 @@ function toggleTheme(){
 
 // ── API Config ────────────────────────────────────────
 var LLM_KEY=localStorage.getItem('dd-llm-key')||"";
-var LLM_URL=localStorage.getItem('dd-endpoint')||"https://api.deepseek.com/v1/chat/completions";
+var LLM_URL=localStorage.getItem('dd-endpoint')||"https://dd-proxy.vercel.app/api/proxy";
 var LLM_MODEL="deepseek-chat";
 (function initAPIConfig(){
   if(LLM_KEY)document.getElementById('setting-key').value=LLM_KEY;
