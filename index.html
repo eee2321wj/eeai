@@ -737,8 +737,8 @@ function ensureKB(){
 }
 function ensureXLSX(){return _loadScript('./xlsx.min.js').then(function(){if(typeof XLSX==='undefined')throw new Error('Excel 组件未就绪');});}
 function ensureJSZip(){return _loadScript('./jszip.min.js').then(function(){if(typeof JSZip==='undefined')throw new Error('压缩包组件未就绪');});}
-/* 启动后后台预载知识库（首次准则查询零等待） */
-ensureKB().catch(function(e){console.warn('[KB]',e.message);});
+/* 首屏渲染完成后再后台预载知识库（首次准则查询零等待，且不阻塞首屏） */
+window.addEventListener('load',function(){ensureKB().catch(function(e){console.warn('[KB]',e.message);});});
 </script>
 
 <script>
