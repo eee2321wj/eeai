@@ -778,11 +778,11 @@ async function callLLM(messages,temp,maxTokens,onChunk){
   var useStream=!!onChunk;
   var resp=await fetch(url,{
     method:"POST",headers:headers,
-    body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||2048,stream:useStream})
+    body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||1536,stream:useStream})
   });
   if(!resp.ok){var e;try{e=await resp.json();}catch(_){e={error:{message:"HTTP "+resp.status}};}throw new Error(e.error&&e.error.message?e.error.message:JSON.stringify(e));}
   if(useStream){
-    var reader=resp.body.getReader();var decoder=new TextDecoder();var full="";var buf="";
+    var reader=resp.body.getReader();var decoder=new TextDecoder();var full="";var buf="";var firstChunk=true;
     while(true){
       var p=await reader.read();if(p.done)break;
       buf+=decoder.decode(p.value,{stream:true});
@@ -790,7 +790,7 @@ async function callLLM(messages,temp,maxTokens,onChunk){
       for(var i=0;i<lines.length;i++){
         var ln=lines[i].trim();if(!ln.startsWith("data: "))continue;
         var j=ln.slice(6);if(j==="[DONE]")continue;
-        try{var dt=JSON.parse(j);var dl=dt.choices[0].delta;if(dl.content){full+=dl.content;onChunk(full,dl.content);}}catch(_){}
+        try{var dt=JSON.parse(j);var dl=dt.choices[0].delta;if(dl.content){full+=dl.content;if(firstChunk){firstChunk=false;autoReveal();}onChunk(full,dl.content);}}catch(_){}
       }
     }
     return full;
@@ -803,6 +803,15 @@ async function callLLM(messages,temp,maxTokens,onChunk){
 function show(id){document.getElementById(id).classList.add('show');}
 function hide(id){document.getElementById(id).classList.remove('show');}
 function showE(id,msg){var el=document.getElementById(id);el.textContent=msg;show(id);}
+// 流式首帧：自动隐藏当前 loading、显示对应 result（命名约定 loading-XXX / result-XXX）
+function autoReveal(){
+  document.querySelectorAll('[id^="loading-"].show').forEach(function(el){
+    el.classList.remove('show');
+    var suf=el.id.slice(8);
+    var res=document.getElementById('result-'+suf);
+    if(res)res.classList.add('show');
+  });
+}
 
 // ═══════════════════════════════════════════════════════
 //  KB Data (embedded)
@@ -888,7 +897,7 @@ async function doKBQuery(){
       }
       var sys=CYPROMPT;
       if(kbContext)sys+="\n\n---\n\n# 知识库参考资料\n\n"+kbContext+"\n\n如果知识库内容与问题相关，请引用具体内容；不相关则基于专业知识回答。";
-      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}],0.3,2048,function(full){
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:q}],0.3,1536,function(full){
         document.getElementById('answer-kb').innerHTML=renderMd(full);
       });
       document.getElementById('answer-kb').innerHTML=renderMd(answer);
@@ -1052,7 +1061,7 @@ async function doInterview(){
     var userMsg="企业名称："+company+"\n行业："+industry+"\n尽调目的："+purpose+(extra?"\n补充说明："+extra:"");
     ivMessages=[{role:"system",content:sys},{role:"user",content:userMsg}];
     try{
-      var answer=await callLLM(ivMessages,0.4,2048,function(full){
+      var answer=await callLLM(ivMessages,0.4,1536,function(full){
         document.getElementById('chat-iv').innerHTML='<div class="chat-msg ai"><div class="answer">'+renderMd(full)+'</div></div>';
       });
       ivMessages.push({role:"assistant",content:answer});
@@ -1081,7 +1090,7 @@ async function doIVFollowup(){
   chat.innerHTML+='<div class="chat-msg user">'+escHtml(q)+'</div>';
   try{
     ivMessages.push({role:"user",content:q});
-    var answer=await callLLM(ivMessages,0.4,2048,function(full){
+    var answer=await callLLM(ivMessages,0.4,1536,function(full){
       var msg=chat.lastElementChild;
       if(!msg||!msg.classList.contains('ai')){
         chat.innerHTML+='<div class="chat-msg ai"><div class="answer">'+renderMd(full)+'</div></div>';
@@ -1244,7 +1253,7 @@ async function doFinance(){
   var userMsg="以下是目标公司的财务数据（单位：万元）：\n\n## 利润表\n"+(income||"未提供")+"\n\n## 资产负债表\n"+(balance||"未提供");
   try{
     document.getElementById('answer-fa').innerHTML='<div class="streaming-text">AI正在分析...</div>';
-    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,2048,function(full){
+    var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,1536,function(full){
       document.getElementById('answer-fa').innerHTML=renderMd(full);
     });
     show('result-fa');
@@ -1301,7 +1310,7 @@ async function doRisk(){
       document.getElementById('risk-rating').innerHTML='';
       document.getElementById('risk-grid').innerHTML='';
       document.getElementById('answer-rk').innerHTML='<div class="streaming-text">AI 正在评估风险...</div>';
-      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,2048,function(full){
+      var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,1536,function(full){
         document.getElementById('answer-rk').innerHTML=renderMd(full);
       });
       var ratingMatch=answer.match(/RATING:\s*(\d)/);
@@ -1602,7 +1611,7 @@ async function doReport(){
     var sys="你是一名会计师事务所的高级审计经理。将用户提供的原始访谈纪要或笔记，优化为事务所风格的正式表达。\n\n要求：\n1. 保持原意不变\n2. 用语专业、简洁、客观\n3. 结构化分点表述\n4. 去除口语化表达和冗余信息\n5. 标注需要进一步核实的事项\n\n用 Markdown 格式输出。";
     rpMessages=[{role:"system",content:sys},{role:"user",content:input}];
     try{
-      var answer=await callLLM(rpMessages,0.3,2048,function(full){
+      var answer=await callLLM(rpMessages,0.3,1536,function(full){
         document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(full)+'</div>';
       });
       rpMessages.push({role:"assistant",content:answer});
@@ -1625,7 +1634,7 @@ async function doReportPolish(){
   show('loading-rp');hide('error-rp');
   rpMessages.push({role:"user",content:"请继续润色，使表达更加精炼专业。"});
   try{
-    var answer=await callLLM(rpMessages,0.3,2048,function(full){
+    var answer=await callLLM(rpMessages,0.3,1536,function(full){
       document.getElementById('rp-output').innerHTML='<div class="answer">'+renderMd(full)+'</div>';
     });
     rpMessages.push({role:"assistant",content:answer});
