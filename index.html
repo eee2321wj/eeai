@@ -665,14 +665,14 @@ body {
     <div class="settings-row">
       <div>
         <div class="settings-label">API 端点</div>
-        <div class="settings-desc">直接 DeepSeek 或用 Cloudflare Worker 代理</div>
+        <div class="settings-desc">公司网络填 DeepSeek 直连；无墙环境可填代理地址</div>
       </div>
       <input class="form-input" id="setting-endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" style="width:380px" oninput="saveEndpoint(this.value)">
     </div>
     <div class="settings-row">
       <div>
         <div class="settings-label">API Key</div>
-        <div class="settings-desc">直连 DeepSeek 时需要；使用 Worker 代理则留空</div>
+        <div class="settings-desc">直连时必填；用代理时留空（代理内置 Key）</div>
       </div>
       <input class="form-input" id="setting-key" placeholder="sk-..." style="width:300px" oninput="saveKey(this.value)">
     </div>
@@ -760,7 +760,7 @@ function toggleTheme(){
 
 // ── API Config ────────────────────────────────────────
 var LLM_KEY=localStorage.getItem('dd-llm-key')||"";
-var LLM_URL=localStorage.getItem('dd-endpoint')||"https://dd-proxy.vercel.app/api/proxy";
+var LLM_URL=localStorage.getItem('dd-endpoint')||"https://api.deepseek.com/v1/chat/completions";
 var LLM_MODEL="deepseek-chat";
 (function initAPIConfig(){
   if(LLM_KEY)document.getElementById('setting-key').value=LLM_KEY;
