@@ -665,14 +665,14 @@ body {
     <div class="settings-row">
       <div>
         <div class="settings-label">API 端点</div>
-        <div class="settings-desc">默认 Vercel 代理（需无墙网络）；也可改填 DeepSeek 直连</div>
+        <div class="settings-desc">观众默认走 Vercel 代理（用流量访问）；演示者填 Key 后自动直连</div>
       </div>
       <input class="form-input" id="setting-endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" style="width:380px" oninput="saveEndpoint(this.value)">
     </div>
     <div class="settings-row">
       <div>
         <div class="settings-label">API Key</div>
-        <div class="settings-desc">用代理时留空（代理内置 Key）；直连时必填</div>
+        <div class="settings-desc">演示时填入你的 DeepSeek Key 即自动直连（公司网可用）；观众留空走代理</div>
       </div>
       <input class="form-input" id="setting-key" placeholder="sk-..." style="width:300px" oninput="saveKey(this.value)">
     </div>
@@ -771,11 +771,12 @@ function saveEndpoint(v){LLM_URL=v||"https://api.deepseek.com/v1/chat/completion
 function hasAPI(){return !!LLM_KEY||!!LLM_URL;}
 
 async function callLLM(messages,temp,maxTokens,onChunk){
-  if(!LLM_URL)throw new Error("NO_API_KEY");
+  // 双模式：填了 Key → 直连 DeepSeek（演示者/公司网可用、流式快）；未填 Key → 走默认代理（观众用流量）
+  var url=LLM_KEY?"https://api.deepseek.com/v1/chat/completions":(LLM_URL||"https://api.deepseek.com/v1/chat/completions");
   var headers={"Content-Type":"application/json"};
   if(LLM_KEY)headers["Authorization"]="Bearer "+LLM_KEY;
   var useStream=!!onChunk;
-  var resp=await fetch(LLM_URL,{
+  var resp=await fetch(url,{
     method:"POST",headers:headers,
     body:JSON.stringify({model:LLM_MODEL,messages:messages,temperature:temp||0.3,max_tokens:maxTokens||2048,stream:useStream})
   });
@@ -1291,14 +1292,17 @@ async function doRisk(){
   if(!company){showE('error-rk','请填写企业名称');return;}
   var btn=document.getElementById('btn-rk');
   btn.disabled=true;
-  show('loading-rk');hide('result-rk');hide('error-rk');
+  show('loading-rk');hide('error-rk');
   if(hasAPI()){
     var sys="你是一名财务尽调风险分析师。根据企业基本情况，输出五维度风险评估。\n\n输出格式要求（严格遵守）：\n第一行输出总体风险等级（1-5），格式：RATING:数字\n\n然后输出五个维度的评估，每个维度格式：\nDIM:维度名称|等级(high/medium/low)|简述\n\n五个维度：\n1. 收入确认\n2. 客户集中\n3. 持续经营\n4. 关联交易\n5. 资金占用\n\n最后用 Markdown 输出详细分析。";
     var userMsg="企业名称："+company+"\n行业："+(industry||"未提供")+"\n营收规模："+(revenue||"未提供")+"万元\n员工人数："+(emp||"未提供")+"\n关键风险词："+(kw||"无");
     try{
-      document.getElementById('result-rk').innerHTML='<div class="streaming-text">AI正在评估风险...</div>';
+      show('result-rk');
+      document.getElementById('risk-rating').innerHTML='';
+      document.getElementById('risk-grid').innerHTML='';
+      document.getElementById('answer-rk').innerHTML='<div class="streaming-text">AI 正在评估风险...</div>';
       var answer=await callLLM([{role:"system",content:sys},{role:"user",content:userMsg}],0.3,2048,function(full){
-        document.getElementById('result-rk').innerHTML=renderMd(full);
+        document.getElementById('answer-rk').innerHTML=renderMd(full);
       });
       var ratingMatch=answer.match(/RATING:\s*(\d)/);
       var rating=ratingMatch?parseInt(ratingMatch[1]):3;
